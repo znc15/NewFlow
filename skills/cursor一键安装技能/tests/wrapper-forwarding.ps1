@@ -1,3 +1,4 @@
+# GENERATED FILE - DO NOT EDIT
 $ErrorActionPreference = "Stop"
 
 $selfPath = (Resolve-Path $PSCommandPath).Path

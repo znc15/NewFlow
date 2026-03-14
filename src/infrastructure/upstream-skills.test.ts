@@ -32,13 +32,21 @@ describe('upstream-skills', () => {
       'frontend-design',
       'playwright',
       'ui-ux-pro-max',
-      'superpowers',
+      'using-superpowers',
     ]));
   });
 
-  it('keeps feature-dev as a local-only skill', () => {
-    expect(LOCAL_ONLY_SKILLS).toContain('feature-dev');
-    expect(getTrackedUpstreamSkillNames()).not.toContain('feature-dev');
+  it('keeps locally maintained skills outside upstream sync', () => {
+    expect(LOCAL_ONLY_SKILLS).toEqual(expect.arrayContaining([
+      'feature-dev',
+      'code-review',
+      'superpowers',
+    ]));
+    expect(getTrackedUpstreamSkillNames()).not.toEqual(expect.arrayContaining([
+      'feature-dev',
+      'code-review',
+      'superpowers',
+    ]));
   });
 
   it('builds a sync plan that targets every packaged root for every tracked skill', () => {

@@ -1,28 +1,16 @@
-﻿# Playwright CLI Reference
+# Playwright CLI Reference
 
-Use the bundled wrapper script unless the CLI is already installed globally.
-
-Windows PowerShell:
-
-```powershell
-$PWCLI = Join-Path $env:USERPROFILE ".cursor\skills\playwright\scripts\playwright_cli.cmd"
-& $PWCLI --help
-```
-
-Bash:
+Use the wrapper script unless the CLI is already installed globally:
 
 ```bash
-export PWCLI="$HOME/.cursor/skills/playwright/scripts/playwright_cli.sh"
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
 "$PWCLI" --help
 ```
 
-Optional convenience alias in PowerShell:
+User-scoped skills install under `$CODEX_HOME/skills` (default: `~/.codex/skills`).
 
-```powershell
-function pwcli { & $PWCLI @Args }
-```
-
-Optional convenience alias in bash:
+Optional convenience alias:
 
 ```bash
 alias pwcli="$PWCLI"
@@ -30,7 +18,7 @@ alias pwcli="$PWCLI"
 
 ## Core
 
-```powershell
+```bash
 pwcli open https://example.com
 pwcli close
 pwcli snapshot
@@ -55,7 +43,7 @@ pwcli resize 1920 1080
 
 ## Navigation
 
-```powershell
+```bash
 pwcli go-back
 pwcli go-forward
 pwcli reload
@@ -63,7 +51,7 @@ pwcli reload
 
 ## Keyboard
 
-```powershell
+```bash
 pwcli press Enter
 pwcli press ArrowDown
 pwcli keydown Shift
@@ -72,7 +60,7 @@ pwcli keyup Shift
 
 ## Mouse
 
-```powershell
+```bash
 pwcli mousemove 150 300
 pwcli mousedown
 pwcli mousedown right
@@ -83,7 +71,7 @@ pwcli mousewheel 0 100
 
 ## Save as
 
-```powershell
+```bash
 pwcli screenshot
 pwcli screenshot e5
 pwcli pdf
@@ -91,7 +79,7 @@ pwcli pdf
 
 ## Tabs
 
-```powershell
+```bash
 pwcli tab-list
 pwcli tab-new
 pwcli tab-new https://example.com/page
@@ -102,7 +90,7 @@ pwcli tab-select 0
 
 ## DevTools
 
-```powershell
+```bash
 pwcli console
 pwcli console warning
 pwcli network
@@ -115,21 +103,12 @@ pwcli tracing-stop
 
 Use a named session to isolate work:
 
-```powershell
+```bash
 pwcli --session todo open https://demo.playwright.dev/todomvc
 pwcli --session todo snapshot
 ```
 
-Or set an environment variable once.
-
-PowerShell:
-
-```powershell
-$env:PLAYWRIGHT_CLI_SESSION = "todo"
-pwcli open https://demo.playwright.dev/todomvc
-```
-
-Bash:
+Or set an environment variable once:
 
 ```bash
 export PLAYWRIGHT_CLI_SESSION=todo

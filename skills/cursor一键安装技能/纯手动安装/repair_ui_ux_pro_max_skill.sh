@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# GENERATED FILE - DO NOT EDIT
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

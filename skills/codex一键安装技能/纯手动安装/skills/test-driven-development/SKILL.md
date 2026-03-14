@@ -221,7 +221,7 @@ Manual testing is ad-hoc. You think you tested everything but:
 - No record of what you tested
 - Can't re-run when code changes
 - Easy to forget cases under pressure
-- "It worked when I tried it" 閳?comprehensive
+- "It worked when I tried it" ≠ comprehensive
 
 Automated tests are systematic. They run the same way every time.
 
@@ -251,7 +251,7 @@ Tests-after are biased by your implementation. You test what you built, not what
 
 Tests-first force edge case discovery before implementing. Tests-after verify you remembered everything (you didn't).
 
-30 minutes of tests after 閳?TDD. You get coverage, lose proof tests work.
+30 minutes of tests after ≠ TDD. You get coverage, lose proof tests work.
 
 ## Common Rationalizations
 
@@ -260,7 +260,7 @@ Tests-first force edge case discovery before implementing. Tests-after verify yo
 | "Too simple to test" | Simple code breaks. Test takes 30 seconds. |
 | "I'll test after" | Tests passing immediately prove nothing. |
 | "Tests after achieve same goals" | Tests-after = "what does this do?" Tests-first = "what should this do?" |
-| "Already manually tested" | Ad-hoc 閳?systematic. No record, can't re-run. |
+| "Already manually tested" | Ad-hoc ≠ systematic. No record, can't re-run. |
 | "Deleting X hours is wasteful" | Sunk cost fallacy. Keeping unverified code is technical debt. |
 | "Keep as reference, write tests first" | You'll adapt it. That's testing after. Delete means delete. |
 | "Need to explore first" | Fine. Throw away exploration, start with TDD. |
@@ -364,8 +364,8 @@ When adding mocks or test utilities, read @testing-anti-patterns.md to avoid com
 ## Final Rule
 
 ```
-Production code 閳?test exists and failed first
-Otherwise 閳?not TDD
+Production code → test exists and failed first
+Otherwise → not TDD
 ```
 
 No exceptions without your human partner's permission.

@@ -1,3 +1,4 @@
+<!-- GENERATED FILE - DO NOT EDIT -->
 ﻿# context7 三平台安装脚本说明
 
 本说明仅适用于 `Cursor` 的 `mcp.json` 配置模型。

@@ -1,3 +1,4 @@
+# GENERATED FILE - DO NOT EDIT
 ﻿param(
     [string]$TargetCodexHome,
     [switch]$Force,

@@ -1,3 +1,4 @@
+<!-- GENERATED FILE - DO NOT EDIT -->
 ﻿# Changelog
 
 ## v1.0.1

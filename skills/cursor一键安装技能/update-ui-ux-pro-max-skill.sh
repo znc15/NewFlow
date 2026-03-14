@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# GENERATED FILE - DO NOT EDIT
 set -euo pipefail
 
 target_cursor_home="${1:-${HOME}/.cursor}"

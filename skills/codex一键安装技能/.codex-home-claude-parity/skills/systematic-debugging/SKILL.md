@@ -61,7 +61,7 @@ You MUST complete each phase before proceeding to the next.
    - Can you trigger it reliably?
    - What are the exact steps?
    - Does it happen every time?
-   - If not reproducible 閳?gather more data, don't guess
+   - If not reproducible → gather more data, don't guess
 
 3. **Check Recent Changes**
    - What changed that could cause this?
@@ -71,7 +71,7 @@ You MUST complete each phase before proceeding to the next.
 
 4. **Gather Evidence in Multi-Component Systems**
 
-   **WHEN system has multiple components (CI 閳?build 閳?signing, API 閳?service 閳?database):**
+   **WHEN system has multiple components (CI → build → signing, API → service → database):**
 
    **BEFORE proposing fixes, add diagnostic instrumentation:**
    ```
@@ -105,7 +105,7 @@ You MUST complete each phase before proceeding to the next.
    codesign --sign "$IDENTITY" --verbose=4 "$APP"
    ```
 
-   **This reveals:** Which layer fails (secrets 閳?workflow 閴? workflow 閳?build 閴?
+   **This reveals:** Which layer fails (secrets → workflow ✓, workflow → build ✗)
 
 5. **Trace Data Flow**
 
@@ -157,7 +157,7 @@ You MUST complete each phase before proceeding to the next.
    - Don't fix multiple things at once
 
 3. **Verify Before Continuing**
-   - Did it work? Yes 閳?Phase 4
+   - Did it work? Yes → Phase 4
    - Didn't work? Form NEW hypothesis
    - DON'T add more fixes on top
 
@@ -193,7 +193,7 @@ You MUST complete each phase before proceeding to the next.
    - STOP
    - Count: How many fixes have you tried?
    - If < 3: Return to Phase 1, re-analyze with new information
-   - **If 閳?3: STOP and question the architecture (step 5 below)**
+   - **If ≥ 3: STOP and question the architecture (step 5 below)**
    - DON'T attempt Fix #4 without architectural discussion
 
 5. **If 3+ Fixes Failed: Question Architecture**
@@ -252,7 +252,7 @@ If you catch yourself thinking:
 | "I'll write test after confirming fix works" | Untested fixes don't stick. Test first proves it. |
 | "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
 | "Reference too long, I'll adapt the pattern" | Partial understanding guarantees bugs. Read it completely. |
-| "I see the problem, let me fix it" | Seeing symptoms 閳?understanding root cause. |
+| "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
 | "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
 
 ## Quick Reference

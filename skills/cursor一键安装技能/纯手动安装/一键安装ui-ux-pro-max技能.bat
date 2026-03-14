@@ -1,3 +1,4 @@
+:: GENERATED FILE - DO NOT EDIT
 @echo off
 setlocal
 cd /d "%~dp0"

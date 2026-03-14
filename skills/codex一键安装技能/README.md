@@ -1,3 +1,4 @@
+<!-- GENERATED FILE - DO NOT EDIT -->
 ﻿# Codex portable installer
 
 This package targets **Codex CLI only**.

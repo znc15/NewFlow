@@ -1,3 +1,4 @@
+<!-- GENERATED FILE - DO NOT EDIT -->
 ﻿# Cursor 纯手动安装包
 
 本目录仅面向 `Cursor`。

@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# GENERATED FILE - DO NOT EDIT
 set -eu
 
 target_codex_home=""

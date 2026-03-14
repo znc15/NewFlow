@@ -1,3 +1,4 @@
+# GENERATED FILE - DO NOT EDIT
 $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PWD "cursor一键安装技能"))

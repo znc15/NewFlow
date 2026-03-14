@@ -4,9 +4,10 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { type SkillsPackageSkillSource, syncPublishedSkillsPackages } from './skills-package-pipeline';
 
 export interface UpstreamSkillSource {
   repo: string;
@@ -35,6 +36,8 @@ export const PACKAGED_SKILL_ROOTS = [
 /** 目前仍由仓库本地维护、暂不从上游自动覆盖的技能 */
 export const LOCAL_ONLY_SKILLS = [
   'feature-dev',
+  'code-review',
+  'superpowers',
 ] as const;
 
 /** 上游技能仓库来源映射（基于 skills.sh 查询结果固化，运行时直接从 GitHub 同步以提高稳定性） */
@@ -45,14 +48,12 @@ export const UPSTREAM_SKILL_SOURCES: readonly UpstreamSkillSource[] = [
     sourceSubpath: 'skills',
     skillNames: [
       'brainstorming',
-      'code-review',
       'dispatching-parallel-agents',
       'executing-plans',
       'finishing-a-development-branch',
       'receiving-code-review',
       'requesting-code-review',
       'subagent-driven-development',
-      'superpowers',
       'systematic-debugging',
       'test-driven-development',
       'using-git-worktrees',
@@ -116,6 +117,7 @@ function cloneRepo(repo: string, ref: string): string {
 export function syncUpstreamSkills(basePath: string, logger: (message: string) => void = console.log): void {
   const plan = buildSkillSyncPlan();
   const repoCache = new Map<string, string>();
+  const skillSources: SkillsPackageSkillSource[] = [];
 
   try {
     for (const entry of plan) {
@@ -132,15 +134,15 @@ export function syncUpstreamSkills(basePath: string, logger: (message: string) =
         throw new Error(`上游技能路径不存在: ${entry.repo}/${entry.sourceSubpath}`);
       }
 
-      for (const targetRoot of entry.targetRoots) {
-        const targetDir = join(basePath, targetRoot, entry.skillName);
-        mkdirSync(join(basePath, targetRoot), { recursive: true });
-        rmSync(targetDir, { recursive: true, force: true });
-        cpSync(sourceDir, targetDir, { recursive: true });
-      }
-
-      logger(`已同步技能: ${entry.skillName} <- ${entry.repo}/${entry.sourceSubpath}`);
+      skillSources.push({
+        skillName: entry.skillName,
+        sourceDir,
+      });
+      logger(`已收集技能源: ${entry.skillName} <- ${entry.repo}/${entry.sourceSubpath}`);
     }
+
+    syncPublishedSkillsPackages(basePath, skillSources);
+    logger('已生成 Codex / Cursor 技能发布包');
   } finally {
     for (const repoDir of repoCache.values()) {
       rmSync(join(repoDir, '..'), { recursive: true, force: true });

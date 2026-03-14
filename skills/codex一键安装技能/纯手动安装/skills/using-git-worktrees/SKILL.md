@@ -27,23 +27,23 @@ ls -d worktrees 2>/dev/null      # Alternative
 
 **If found:** Use that directory. If both exist, `.worktrees` wins.
 
-### 2. Check AGENTS.md
+### 2. Check CLAUDE.md
 
 ```bash
-grep -i "worktree.*director" AGENTS.md 2>/dev/null
+grep -i "worktree.*director" CLAUDE.md 2>/dev/null
 ```
 
 **If preference specified:** Use it without asking.
 
 ### 3. Ask User
 
-If no directory exists and no AGENTS.md preference:
+If no directory exists and no CLAUDE.md preference:
 
 ```
 No worktree directory found. Where should I create worktrees?
 
 1. .worktrees/ (project-local, hidden)
-2. ~/.codex/worktrees/<project-name>/ (global location)
+2. ~/.config/superpowers/worktrees/<project-name>/ (global location)
 
 Which would you prefer?
 ```
@@ -61,14 +61,14 @@ git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/d
 
 **If NOT ignored:**
 
-If the worktree directory is not ignored yet:
+Per Jesse's rule "Fix broken things immediately":
 1. Add appropriate line to .gitignore
 2. Commit the change
 3. Proceed with worktree creation
 
 **Why critical:** Prevents accidentally committing worktree contents to repository.
 
-### For Global Directory (~/.codex/worktrees)
+### For Global Directory (~/.config/superpowers/worktrees)
 
 No .gitignore verification needed - outside project entirely.
 
@@ -88,8 +88,8 @@ case $LOCATION in
   .worktrees|worktrees)
     path="$LOCATION/$BRANCH_NAME"
     ;;
-  ~/.codex/worktrees/*)
-    path="~/.codex/worktrees/$project/$BRANCH_NAME"
+  ~/.config/superpowers/worktrees/*)
+    path="~/.config/superpowers/worktrees/$project/$BRANCH_NAME"
     ;;
 esac
 
@@ -148,7 +148,7 @@ Ready to implement <feature-name>
 | `.worktrees/` exists | Use it (verify ignored) |
 | `worktrees/` exists | Use it (verify ignored) |
 | Both exist | Use `.worktrees/` |
-| Neither exists | Check AGENTS.md 闁?Ask user |
+| Neither exists | Check CLAUDE.md → Ask user |
 | Directory not ignored | Add to .gitignore + commit |
 | Tests fail during baseline | Report failures + ask |
 | No package.json/Cargo.toml | Skip dependency install |
@@ -163,7 +163,7 @@ Ready to implement <feature-name>
 ### Assuming directory location
 
 - **Problem:** Creates inconsistency, violates project conventions
-- **Fix:** Follow priority: existing > AGENTS.md > ask
+- **Fix:** Follow priority: existing > CLAUDE.md > ask
 
 ### Proceeding with failing tests
 
@@ -198,10 +198,10 @@ Ready to implement auth feature
 - Skip baseline test verification
 - Proceed with failing tests without asking
 - Assume directory location when ambiguous
-- Skip AGENTS.md check
+- Skip CLAUDE.md check
 
 **Always:**
-- Follow directory priority: existing > AGENTS.md > ask
+- Follow directory priority: existing > CLAUDE.md > ask
 - Verify directory is ignored for project-local
 - Auto-detect and run project setup
 - Verify clean test baseline
