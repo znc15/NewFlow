@@ -292,7 +292,7 @@ flow resume → 检查是否有未完成工作流
     ↓
 flow next --batch → 返回所有依赖上可并行任务 + 依赖上下文
     ↓
-CC 用 Task 工具并行派发子Agent（Agent Teams）
+CC 用 `Agent` 工具并行派发子Agent（Agent Teams）
     ↓
 子Agent自行 checkpoint → 记录产出 + 自动git提交
     ↓
@@ -317,7 +317,7 @@ flow finish → 自动跑 build/test/lint → 汇报完成/跳过/失败项 → 
   ├── flow next --batch
   │   返回所有依赖已满足的任务（比如3个）
   │
-  ├── 同时派发3个子Agent（一条消息，3个Task工具调用）
+  ├── 同时派发3个子Agent（一条消息，3个`Agent`工具调用）
   │   ├── 子Agent-A → 执行任务001 → 自行checkpoint
   │   ├── 子Agent-B → 执行任务002 → 自行checkpoint
   │   └── 子Agent-C → 执行任务003 → 自行checkpoint
@@ -328,7 +328,7 @@ flow finish → 自动跑 build/test/lint → 汇报完成/跳过/失败项 → 
 
 关键点：
 - 主Agent 优先用 `flow next --batch` 一次性获取所有依赖上可并行任务；若写入边界仍不清晰，可暂时用 `flow next` 串行推进
-- 在**同一条消息**中用多个 Task 工具调用并行派发
+- 在**同一条消息**中用多个 `Agent` 工具调用并行派发
 - 每个子Agent**独立工作、独立checkpoint、独立git提交**
 - 主Agent上下文不会因为子Agent的产出而膨胀（子Agent自行记录）
 

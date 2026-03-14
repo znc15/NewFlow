@@ -127,6 +127,12 @@ describe('FsWorkflowRepository', () => {
     const content = await readFile(join(dir, 'AGENTS.md'), 'utf-8');
     expect(content).toContain('flowpilot:start');
     expect(content).toContain('node flow.js analyze --tasks');
+    expect(content).toContain('### Terminology / 术语约定');
+    expect(content).toContain('### Dispatch Reference（子代理派发规范）');
+    expect(content).toContain('**工具名称**: `Agent`');
+    expect(content).toContain('Main agent can ONLY use Bash, `Agent`, and Skill');
+    expect(content).not.toContain('via Task tool');
+    expect(content).not.toContain('Task call per task');
     expect(content).not.toContain('/superpowers:brainstorming');
   });
 

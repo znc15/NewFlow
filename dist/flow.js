@@ -575,14 +575,76 @@ Run \`node flow.js resume\`:
 - If no workflow \u2192 **judge the request**: reply directly for pure chitchat, use **Ad-hoc Dispatch** for one-off tasks, or enter **Requirement Decomposition** for multi-step development work. When in doubt, prefer the heavier path.
 
 ### Ad-hoc Dispatch (one-off tasks, no workflow init)
-Dispatch sub-agent(s) via Task tool. No init/checkpoint/finish needed. Iron Rule #4 does NOT apply (no task ID exists). Main agent MAY use Read/Glob/Grep directly for trivial lookups (e.g. reading a single file) \u2014 Iron Rule #2 is relaxed in Ad-hoc mode only.
+Dispatch sub-agent(s) via \`Agent\` tool. No init/checkpoint/finish needed. Iron Rule #4 does NOT apply (no task ID exists). Main agent MAY use Read/Glob/Grep directly for trivial lookups (e.g. reading a single file) \u2014 Iron Rule #2 is relaxed in Ad-hoc mode only.
 **\u8BB0\u5FC6\u67E5\u8BE2**: \u56DE\u7B54\u7528\u6237\u95EE\u9898\u524D\uFF0C\u5148\u8FD0\u884C \`node flow.js recall <\u5173\u952E\u8BCD>\` \u68C0\u7D22\u5386\u53F2\u8BB0\u5FC6\uFF0C\u5C06\u7ED3\u679C\u4F5C\u4E3A\u56DE\u7B54\u7684\u53C2\u8003\u4F9D\u636E\u3002
+
+### Terminology / \u672F\u8BED\u7EA6\u5B9A
+- **\u300C\u6D3E\u53D1\u5B50\u4EE3\u7406\u300D/ "dispatch a sub-agent"**: \u6307\u4F7F\u7528 \`Agent\` \u5DE5\u5177\uFF08tool name: \`Agent\`\uFF09\u542F\u52A8\u4E00\u4E2A\u72EC\u7ACB\u5B50\u4EE3\u7406\u6267\u884C\u4EFB\u52A1\u3002
+- **\u7981\u6B62\u7684\u4EFB\u52A1\u7BA1\u7406\u5DE5\u5177**: \`TaskCreate\`\u3001\`TaskUpdate\`\u3001\`TaskList\` \u2014\u2014 \u8FD9\u4E9B\u662F\u5185\u7F6E todo \u6E05\u5355\u5DE5\u5177\uFF0C\u672C\u534F\u8BAE\u4E0D\u4F7F\u7528\u3002
+- \u672C\u6587\u6863\u4E2D\u6240\u6709\u63D0\u5230\u300C\u6D3E\u53D1\u300D\u300Cdispatch\u300D\u7684\u5730\u65B9\uFF0C\u5747\u6307\u4F7F\u7528 \`Agent\` \u5DE5\u5177\u3002
+
+> **Anti-Confusion Note**: The word "task" in this document has two meanings:
+> - **Workflow task** (lowercase): a unit of work managed by \`node flow.js\` commands.
+> - **\`Agent\` tool call**: the mechanism to dispatch a sub-agent to execute a workflow task.
+> - **\`TaskCreate\` / \`TaskUpdate\` / \`TaskList\`**: FORBIDDEN built-in todo-list tools. Never use these.
 
 ### Iron Rules (violating ANY = protocol failure)
 1. **NEVER use TaskCreate / TaskUpdate / TaskList** \u2014 use ONLY \`node flow.js xxx\`.
-2. **Main agent can ONLY use Bash, Task, and Skill** \u2014 Edit, Write, Read, Glob, Grep, Explore are ALL FORBIDDEN. To read any file (including docs), dispatch a sub-agent.
-3. **ALWAYS dispatch via Task tool** \u2014 one Task call per task. N tasks = N Task calls **in a single message** for parallel execution.
+2. **Main agent can ONLY use Bash, \`Agent\`, and Skill** \u2014 Edit, Write, Read, Glob, Grep, Explore are ALL FORBIDDEN. To read any file (including docs), dispatch a sub-agent.
+3. **ALWAYS dispatch via \`Agent\` tool** \u2014 one \`Agent\` call per task. N tasks = N \`Agent\` calls **in a single message** for parallel execution.
 4. **Sub-agents MUST run checkpoint with --files before replying** \u2014 \`echo 'summary' | node flow.js checkpoint <id> --files file1 file2\` is the LAST command before reply. MUST list all created/modified files. Skipping = protocol failure.
+
+### Dispatch Reference\uFF08\u5B50\u4EE3\u7406\u6D3E\u53D1\u89C4\u8303\uFF09
+
+**\u5DE5\u5177\u540D\u79F0**: \`Agent\`\uFF08\u8FD9\u662F\u552F\u4E00\u7684\u6D3E\u53D1\u5DE5\u5177\uFF0C\u6CA1\u6709\u53EB "Task" \u7684\u5DE5\u5177\uFF09
+
+**\u5FC5\u586B\u53C2\u6570**:
+| \u53C2\u6570 | \u8BF4\u660E | \u793A\u4F8B |
+|------|------|------|
+| \`subagent_type\` | \u5B50\u4EE3\u7406\u7C7B\u578B\uFF0C\u51B3\u5B9A\u53EF\u7528\u5DE5\u5177\u96C6 | \`"feature-dev:code-architect"\` |
+| \`description\` | 3-5 \u8BCD\u7B80\u8FF0\uFF0C\u663E\u793A\u5728 UI \u6807\u9898\u680F | \`"Task 021: \u5BA1\u6279\u6D41\u7A0B\u540E\u7AEF API"\` |
+| \`prompt\` | \u5B8C\u6574\u7684\u4EFB\u52A1\u6307\u4EE4\uFF08\u542B checkpoint \u547D\u4EE4\uFF09 | \u89C1\u4E0B\u65B9\u6A21\u677F |
+| \`name\` | \u5B50\u4EE3\u7406\u540D\u79F0\uFF0C\u7528\u4E8E\u6D88\u606F\u8DEF\u7531 | \`"task-021"\` |
+
+**\u53EF\u9009\u53C2\u6570**:
+| \u53C2\u6570 | \u8BF4\u660E |
+|------|------|
+| \`mode\` | \u6743\u9650\u6A21\u5F0F\uFF0C\u63A8\u8350 \`"bypassPermissions"\` |
+| \`model\` | \u6A21\u578B\u8986\u76D6\uFF1A\`"sonnet"\` / \`"opus"\` / \`"haiku"\` |
+| \`run_in_background\` | \`true\` \u65F6\u540E\u53F0\u8FD0\u884C\uFF0C\u5B8C\u6210\u540E\u901A\u77E5 |
+
+**subagent_type \u8DEF\u7531\u89C4\u5219**:
+- \`type=backend\` \u2192 \`subagent_type: "feature-dev:code-architect"\`
+- \`type=frontend\` \u2192 \`subagent_type: "feature-dev:code-architect"\`\uFF08\u914D\u5408 /frontend-design skill\uFF09
+- \`type=general\` \u2192 \`subagent_type: "general-purpose"\`
+
+**\u6D3E\u53D1\u793A\u4F8B**\uFF08\u4E3B\u4EE3\u7406\u8F93\u51FA + \u5DE5\u5177\u8C03\u7528\uFF09:
+
+\u4E3B\u4EE3\u7406\u5148\u8F93\u51FA\u6587\u672C\uFF1A
+\`\`\`
+\u25CF \u4EFB\u52A1 021 \u5DF2\u5C31\u7EEA\uFF0C\u73B0\u5728\u6D3E\u53D1\u5B50\u4EE3\u7406\u6267\u884C\u3002
+\`\`\`
+
+\u7136\u540E\u8C03\u7528 Agent \u5DE5\u5177\uFF1A
+\`\`\`json
+{
+  "tool": "Agent",
+  "parameters": {
+    "subagent_type": "feature-dev:code-architect",
+    "description": "Task 021: \u5BA1\u6279\u6D41\u7A0B+\u529E\u516C\u7528\u54C1\u540E\u7AEF API",
+    "name": "task-021",
+    "mode": "bypassPermissions",
+    "prompt": "\u4F60\u7684\u4EFB\u52A1\u662F...\\n\\n\u5B8C\u6210\u540E\u5FC5\u987B\u8FD0\u884C\uFF1A\\necho '\u6458\u8981' | node flow.js checkpoint 021 --files file1 file2"
+  }
+}
+\`\`\`
+
+**\u5E76\u884C\u6D3E\u53D1**\uFF08N \u4E2A\u4EFB\u52A1 = \u540C\u4E00\u6761\u6D88\u606F\u4E2D N \u4E2A Agent \u8C03\u7528\uFF09:
+\`\`\`
+Agent({ "name": "task-021", "description": "Task 021: ...", ... })
+Agent({ "name": "task-022", "description": "Task 022: ...", ... })
+Agent({ "name": "task-023", "description": "Task 023: ...", ... })
+\`\`\`
 
 ### Requirement Decomposition
 **Step 0 \u2014 Auto-detect (ALWAYS run first):**
@@ -605,7 +667,7 @@ Format: \`[type]\` = frontend/backend/general, \`(deps: N)\` = dependency IDs, i
 
 ### Execution Loop
 1. Prefer running \`node flow.js next --batch\` when tasks are confirmed independent. **NOTE: this command will REFUSE to return tasks if any previous task is still \`active\`, or if the workflow is in \`reconciling\` state. In reconciling state you must adopt/restart/skip first, and restart may only follow handling of the listed task-owned changes. Ownership-ambiguous files must be reviewed manually; do not clear them with whole-file \`git restore\`. If write boundaries remain unclear, \`node flow.js next\` may be used for manual serialization.**
-2. When using batch output, the result already contains checkpoint commands per task. For **EVERY** task in batch, dispatch a sub-agent via Task tool. **ALL Task calls in one message.** Copy the ENTIRE task block (including checkpoint commands) into each sub-agent prompt verbatim. **If the batch contains N independent tasks, dispatch N sub-agents immediately; do not downshift to 1 for caution.**
+2. When using batch output, the result already contains checkpoint commands per task. For **EVERY** task in batch, dispatch a sub-agent via \`Agent\` tool. **ALL \`Agent\` calls in one message.** Copy the ENTIRE task block (including checkpoint commands) into each sub-agent prompt verbatim. **If the batch contains N independent tasks, dispatch N sub-agents immediately; do not downshift to 1 for caution.**
 3. **After ALL sub-agents return**: run \`node flow.js status\`.
    - If any task is still \`active\` \u2192 sub-agent failed to checkpoint. Run fallback: \`echo 'summary from sub-agent output' | node flow.js checkpoint <id> --files file1 file2\`
    - **Do NOT call \`node flow.js next\` until zero active tasks remain** (the command will error anyway).
@@ -6245,8 +6307,8 @@ async function promptSetupClient() {
 var import_fs4 = require("fs");
 var import_path13 = require("path");
 var import_child_process2 = require("child_process");
-var REPO_OWNER = "6BNBN";
-var REPO_NAME = "FlowPilot";
+var REPO_OWNER = "znc15";
+var REPO_NAME = "NewFlow";
 var CACHE_DURATION_MS = 24 * 60 * 60 * 1e3;
 var RELEASE_URL = "https://github.com/" + REPO_OWNER + "/" + REPO_NAME + "/releases";
 function getCachePath() {
@@ -6426,8 +6488,8 @@ var CLI = class {
     if (cmd === "version") {
       const executablePath = (this.deps.getExecutablePath ?? (() => process.argv[1]))();
       const version = (this.deps.getCurrentVersion ?? getCurrentVersion)(executablePath);
-      if (version === "0.0.0") return "FlowPilot vunknown";
-      return "FlowPilot v" + version;
+      if (version === "0.0.0") return "NewFlow vunknown";
+      return "NewFlow v" + version;
     }
     switch (cmd) {
       case "init": {

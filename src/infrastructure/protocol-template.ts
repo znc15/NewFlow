@@ -126,14 +126,76 @@ Run \`node flow.js resume\`:
 - If no workflow → **judge the request**: reply directly for pure chitchat, use **Ad-hoc Dispatch** for one-off tasks, or enter **Requirement Decomposition** for multi-step development work. When in doubt, prefer the heavier path.
 
 ### Ad-hoc Dispatch (one-off tasks, no workflow init)
-Dispatch sub-agent(s) via Task tool. No init/checkpoint/finish needed. Iron Rule #4 does NOT apply (no task ID exists). Main agent MAY use Read/Glob/Grep directly for trivial lookups (e.g. reading a single file) — Iron Rule #2 is relaxed in Ad-hoc mode only.
+Dispatch sub-agent(s) via \`Agent\` tool. No init/checkpoint/finish needed. Iron Rule #4 does NOT apply (no task ID exists). Main agent MAY use Read/Glob/Grep directly for trivial lookups (e.g. reading a single file) — Iron Rule #2 is relaxed in Ad-hoc mode only.
 **记忆查询**: 回答用户问题前，先运行 \`node flow.js recall <关键词>\` 检索历史记忆，将结果作为回答的参考依据。
+
+### Terminology / 术语约定
+- **「派发子代理」/ "dispatch a sub-agent"**: 指使用 \`Agent\` 工具（tool name: \`Agent\`）启动一个独立子代理执行任务。
+- **禁止的任务管理工具**: \`TaskCreate\`、\`TaskUpdate\`、\`TaskList\` —— 这些是内置 todo 清单工具，本协议不使用。
+- 本文档中所有提到「派发」「dispatch」的地方，均指使用 \`Agent\` 工具。
+
+> **Anti-Confusion Note**: The word "task" in this document has two meanings:
+> - **Workflow task** (lowercase): a unit of work managed by \`node flow.js\` commands.
+> - **\`Agent\` tool call**: the mechanism to dispatch a sub-agent to execute a workflow task.
+> - **\`TaskCreate\` / \`TaskUpdate\` / \`TaskList\`**: FORBIDDEN built-in todo-list tools. Never use these.
 
 ### Iron Rules (violating ANY = protocol failure)
 1. **NEVER use TaskCreate / TaskUpdate / TaskList** — use ONLY \`node flow.js xxx\`.
-2. **Main agent can ONLY use Bash, Task, and Skill** — Edit, Write, Read, Glob, Grep, Explore are ALL FORBIDDEN. To read any file (including docs), dispatch a sub-agent.
-3. **ALWAYS dispatch via Task tool** — one Task call per task. N tasks = N Task calls **in a single message** for parallel execution.
+2. **Main agent can ONLY use Bash, \`Agent\`, and Skill** — Edit, Write, Read, Glob, Grep, Explore are ALL FORBIDDEN. To read any file (including docs), dispatch a sub-agent.
+3. **ALWAYS dispatch via \`Agent\` tool** — one \`Agent\` call per task. N tasks = N \`Agent\` calls **in a single message** for parallel execution.
 4. **Sub-agents MUST run checkpoint with --files before replying** — \`echo 'summary' | node flow.js checkpoint <id> --files file1 file2\` is the LAST command before reply. MUST list all created/modified files. Skipping = protocol failure.
+
+### Dispatch Reference（子代理派发规范）
+
+**工具名称**: \`Agent\`（这是唯一的派发工具，没有叫 "Task" 的工具）
+
+**必填参数**:
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| \`subagent_type\` | 子代理类型，决定可用工具集 | \`"feature-dev:code-architect"\` |
+| \`description\` | 3-5 词简述，显示在 UI 标题栏 | \`"Task 021: 审批流程后端 API"\` |
+| \`prompt\` | 完整的任务指令（含 checkpoint 命令） | 见下方模板 |
+| \`name\` | 子代理名称，用于消息路由 | \`"task-021"\` |
+
+**可选参数**:
+| 参数 | 说明 |
+|------|------|
+| \`mode\` | 权限模式，推荐 \`"bypassPermissions"\` |
+| \`model\` | 模型覆盖：\`"sonnet"\` / \`"opus"\` / \`"haiku"\` |
+| \`run_in_background\` | \`true\` 时后台运行，完成后通知 |
+
+**subagent_type 路由规则**:
+- \`type=backend\` → \`subagent_type: "feature-dev:code-architect"\`
+- \`type=frontend\` → \`subagent_type: "feature-dev:code-architect"\`（配合 /frontend-design skill）
+- \`type=general\` → \`subagent_type: "general-purpose"\`
+
+**派发示例**（主代理输出 + 工具调用）:
+
+主代理先输出文本：
+\`\`\`
+● 任务 021 已就绪，现在派发子代理执行。
+\`\`\`
+
+然后调用 Agent 工具：
+\`\`\`json
+{
+  "tool": "Agent",
+  "parameters": {
+    "subagent_type": "feature-dev:code-architect",
+    "description": "Task 021: 审批流程+办公用品后端 API",
+    "name": "task-021",
+    "mode": "bypassPermissions",
+    "prompt": "你的任务是...\\n\\n完成后必须运行：\\necho '摘要' | node flow.js checkpoint 021 --files file1 file2"
+  }
+}
+\`\`\`
+
+**并行派发**（N 个任务 = 同一条消息中 N 个 Agent 调用）:
+\`\`\`
+Agent({ "name": "task-021", "description": "Task 021: ...", ... })
+Agent({ "name": "task-022", "description": "Task 022: ...", ... })
+Agent({ "name": "task-023", "description": "Task 023: ...", ... })
+\`\`\`
 
 ### Requirement Decomposition
 **Step 0 — Auto-detect (ALWAYS run first):**
@@ -156,7 +218,7 @@ Format: \`[type]\` = frontend/backend/general, \`(deps: N)\` = dependency IDs, i
 
 ### Execution Loop
 1. Prefer running \`node flow.js next --batch\` when tasks are confirmed independent. **NOTE: this command will REFUSE to return tasks if any previous task is still \`active\`, or if the workflow is in \`reconciling\` state. In reconciling state you must adopt/restart/skip first, and restart may only follow handling of the listed task-owned changes. Ownership-ambiguous files must be reviewed manually; do not clear them with whole-file \`git restore\`. If write boundaries remain unclear, \`node flow.js next\` may be used for manual serialization.**
-2. When using batch output, the result already contains checkpoint commands per task. For **EVERY** task in batch, dispatch a sub-agent via Task tool. **ALL Task calls in one message.** Copy the ENTIRE task block (including checkpoint commands) into each sub-agent prompt verbatim. **If the batch contains N independent tasks, dispatch N sub-agents immediately; do not downshift to 1 for caution.**
+2. When using batch output, the result already contains checkpoint commands per task. For **EVERY** task in batch, dispatch a sub-agent via \`Agent\` tool. **ALL \`Agent\` calls in one message.** Copy the ENTIRE task block (including checkpoint commands) into each sub-agent prompt verbatim. **If the batch contains N independent tasks, dispatch N sub-agents immediately; do not downshift to 1 for caution.**
 3. **After ALL sub-agents return**: run \`node flow.js status\`.
    - If any task is still \`active\` → sub-agent failed to checkpoint. Run fallback: \`echo 'summary from sub-agent output' | node flow.js checkpoint <id> --files file1 file2\`
    - **Do NOT call \`node flow.js next\` until zero active tasks remain** (the command will error anyway).
