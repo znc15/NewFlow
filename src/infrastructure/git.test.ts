@@ -5,8 +5,13 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { __testables, autoCommit, listChangedFiles } from './git';
 import { FsWorkflowRepository } from './fs-repository';
+import { gitInitArgs, initGitRepoQuiet } from '../test-support/git';
 
 describe('git runtime path filtering', () => {
+  it('gitInitArgs 固定默认分支以避免测试输出 branch hint', () => {
+    expect(gitInitArgs()).toEqual(['-c', 'init.defaultBranch=main', 'init']);
+  });
+
   it('filters FlowPilot runtime artifacts from commit files', () => {
     expect(__testables.filterCommitFiles([
       './src/main.ts',
@@ -46,7 +51,7 @@ describe('git runtime path filtering', () => {
     const trackedFile = 'tracked.txt';
 
     try {
-      execFileSync('git', ['init'], { cwd: dir, stdio: 'pipe' });
+      initGitRepoQuiet(dir);
       execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: dir, stdio: 'pipe' });
       execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: dir, stdio: 'pipe' });
 
@@ -67,7 +72,7 @@ describe('git runtime path filtering', () => {
     const dir = await mkdtemp(join(tmpdir(), 'flow-git-'));
 
     try {
-      execFileSync('git', ['init'], { cwd: dir, stdio: 'pipe' });
+      initGitRepoQuiet(dir);
       execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: dir, stdio: 'pipe' });
       execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: dir, stdio: 'pipe' });
 
@@ -98,14 +103,14 @@ describe('git runtime path filtering', () => {
       await mkdir(rootDir, { recursive: true });
       await mkdir(submoduleSourceDir, { recursive: true });
 
-      execFileSync('git', ['init'], { cwd: submoduleSourceDir, stdio: 'pipe' });
+      initGitRepoQuiet(submoduleSourceDir);
       execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: submoduleSourceDir, stdio: 'pipe' });
       execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: submoduleSourceDir, stdio: 'pipe' });
       await writeFile(join(submoduleSourceDir, trackedFile), 'base\n', 'utf-8');
       execFileSync('git', ['add', '--', trackedFile], { cwd: submoduleSourceDir, stdio: 'pipe' });
       execFileSync('git', ['commit', '-m', 'init submodule'], { cwd: submoduleSourceDir, stdio: 'pipe' });
 
-      execFileSync('git', ['init'], { cwd: rootDir, stdio: 'pipe' });
+      initGitRepoQuiet(rootDir);
       execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: rootDir, stdio: 'pipe' });
       execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: rootDir, stdio: 'pipe' });
       execFileSync('git', ['-c', 'protocol.file.allow=always', 'submodule', 'add', submoduleSourceDir, 'vendor/lib'], { cwd: rootDir, stdio: 'pipe' });
@@ -133,14 +138,14 @@ describe('git runtime path filtering', () => {
       await mkdir(rootDir, { recursive: true });
       await mkdir(submoduleSourceDir, { recursive: true });
 
-      execFileSync('git', ['init'], { cwd: submoduleSourceDir, stdio: 'pipe' });
+      initGitRepoQuiet(submoduleSourceDir);
       execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: submoduleSourceDir, stdio: 'pipe' });
       execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: submoduleSourceDir, stdio: 'pipe' });
       await writeFile(join(submoduleSourceDir, trackedFile), 'base\n', 'utf-8');
       execFileSync('git', ['add', '--', trackedFile], { cwd: submoduleSourceDir, stdio: 'pipe' });
       execFileSync('git', ['commit', '-m', 'init submodule'], { cwd: submoduleSourceDir, stdio: 'pipe' });
 
-      execFileSync('git', ['init'], { cwd: rootDir, stdio: 'pipe' });
+      initGitRepoQuiet(rootDir);
       execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: rootDir, stdio: 'pipe' });
       execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: rootDir, stdio: 'pipe' });
       execFileSync('git', ['-c', 'protocol.file.allow=always', 'submodule', 'add', submoduleSourceDir, 'vendor/lib'], { cwd: rootDir, stdio: 'pipe' });
@@ -166,7 +171,7 @@ describe('git runtime path filtering', () => {
     const outsideDir = await mkdtemp(join(tmpdir(), 'flow-git-outside-'));
 
     try {
-      execFileSync('git', ['init'], { cwd: dir, stdio: 'pipe' });
+      initGitRepoQuiet(dir);
       execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: dir, stdio: 'pipe' });
       execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: dir, stdio: 'pipe' });
 

@@ -9,9 +9,11 @@ import { parseTasksMarkdown } from '../infrastructure/markdown-parser';
 import { loadMemory } from '../infrastructure/memory';
 import { loadOwnedFiles } from '../infrastructure/runtime-state';
 import { formatStatus } from '../interfaces/formatter';
+import { log } from '../infrastructure/logger';
 import * as history from '../infrastructure/history';
 import * as hooks from '../infrastructure/hooks';
 import type { CommitResult } from '../domain/repository';
+import { gitInitArgs } from '../test-support/git';
 
 let savedApiKey: string | undefined;
 let savedAuthToken: string | undefined;
@@ -67,7 +69,7 @@ function runGit(args: string[], cwd: string): string {
 }
 
 async function initGitRepo(baseDir: string): Promise<void> {
-  runGit(['init'], baseDir);
+  runGit(gitInitArgs(), baseDir);
   runGit(['config', 'user.name', 'FlowPilot Tests'], baseDir);
   runGit(['config', 'user.email', 'flowpilot-tests@example.com'], baseDir);
   await writeFile(join(baseDir, '.gitignore'), 'node_modules\n', 'utf-8');
@@ -517,6 +519,7 @@ describe('WorkflowService 集成测试', () => {
   });
 
   it('失败重试3次后级联跳过', async () => {
+    const warnSpy = vi.spyOn(log, 'warn').mockImplementation(() => {});
     await svc.init(TASKS_MD);
     await svc.next(); // 001 active
 
@@ -527,6 +530,9 @@ describe('WorkflowService 集成测试', () => {
     await svc.next(); // 重新激活
     const msg = await svc.checkpoint('001', 'FAILED');
     expect(msg).toContain('跳过');
+    expect(msg).toContain('任务 001 陷入重复失败模式');
+    expect(msg).not.toContain('[WARN]');
+    expect(warnSpy).not.toHaveBeenCalled();
 
     // 002依赖001，应被级联跳过
     const r = await svc.next();

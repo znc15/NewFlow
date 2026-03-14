@@ -1753,8 +1753,12 @@ export class WorkflowService {
     const sim12 = this.similarity(last3[1], last3[2]);
     log.debug(`detectFailurePattern ${id}: sim01=${sim01.toFixed(2)}, sim12=${sim12.toFixed(2)}`);
     if (sim01 > 0.6 && sim12 > 0.6) {
-      const msg = `[WARN] 任务 ${id} 陷入重复失败模式，建议 skip 或修改任务描述`;
-      log.warn(msg);
+      const msg = `任务 ${id} 陷入重复失败模式，建议 skip 或修改任务描述`;
+      log.step('task_failed', msg, {
+        taskId: id,
+        level: 'warn',
+        data: { repeatedFailurePattern: true },
+      });
       return msg;
     }
     return null;

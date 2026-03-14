@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
+import { initGitRepoQuiet } from '../test-support/git';
 
 const DIST_FLOW_CLI = resolve(dirname(fileURLToPath(import.meta.url)), '../../dist/flow.js');
 const ROOT_FLOW_CLI_CANDIDATE = resolve(dirname(fileURLToPath(import.meta.url)), '../../../flow.js');
@@ -54,7 +55,7 @@ function runGit(repoDir: string, args: string[], encoding: 'utf-8' | 'buffer' = 
 }
 
 function initGitRepo(repoDir: string): void {
-  execFileSync('git', ['init'], { cwd: repoDir, stdio: 'pipe' });
+  initGitRepoQuiet(repoDir);
   execFileSync('git', ['config', 'user.name', 'FlowPilot Test'], { cwd: repoDir, stdio: 'pipe' });
   execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: repoDir, stdio: 'pipe' });
 }
