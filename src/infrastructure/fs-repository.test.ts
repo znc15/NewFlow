@@ -131,6 +131,9 @@ describe('FsWorkflowRepository', () => {
     expect(content).toContain('### Dispatch Reference（子代理派发规范）');
     expect(content).toContain('**工具名称**: `Agent`');
     expect(content).toContain('Main agent can ONLY use Bash, `Agent`, and Skill');
+    expect(content).toContain('### OpenSpec Adaptive Gate');
+    expect(content).toContain('[USE_OPENSPEC]');
+    expect(content).toContain('[NO_OPENSPEC]');
     expect(content).not.toContain('via Task tool');
     expect(content).not.toContain('Task call per task');
     expect(content).not.toContain('/superpowers:brainstorming');

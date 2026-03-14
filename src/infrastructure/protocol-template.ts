@@ -204,17 +204,21 @@ Agent({ "name": "task-023", "description": "Task 023: ...", ... })
 
 **Path A — Standard (default):**
 1. Dispatch a sub-agent to read requirement docs and return a summary.
-2. Run \`node flow.js analyze --tasks\` to generate a task list. The analyzer will automatically fuse user requirements, project docs and OpenSpec context when available. **Throughput-first rule:** minimize dependencies; only add \`deps\` for true blocking/data dependencies. Prefer wider parallel frontiers over long chains whenever safe.
+2. Run \`node flow.js analyze --tasks\` to generate a task list. The analyzer will always fuse user requirements and project docs. OpenSpec is **adaptive**: only enable it for empty projects or sparse markdown-only projects unless you explicitly override it. **Throughput-first rule:** minimize dependencies; only add \`deps\` for true blocking/data dependencies. Prefer wider parallel frontiers over long chains whenever safe.
 3. Pipe analyzer output into init using this **exact format**:
 \`\`\`bash
 node flow.js analyze --tasks | node flow.js init
 \`\`\`
 Format: \`[type]\` = frontend/backend/general, \`(deps: N)\` = dependency IDs, indented lines = description. **Do not add decorative or "just to be safe" dependencies.**
 
-**OpenSpec Auto Fusion:**
-1. If \`openspec/changes/*/tasks.md\` exists, \`node flow.js analyze --tasks\` will prefer the latest active OpenSpec task file.
-2. If only proposal/spec/design exist, the analyzer will use them as planning context and generate FlowPilot task Markdown automatically.
-3. OpenSpec checkbox format (\`- [ ] 1.1 Task\`) is auto-detected. Group N tasks depend on group N-1.
+### OpenSpec Adaptive Gate
+1. Before running \`node flow.js analyze --tasks\`, the dispatcher **MUST** first ask itself: "Does this repo actually need OpenSpec for planning?"
+2. If the project is empty, or only has a few \`.md\` files with little/no real code → OpenSpec is recommended.
+3. If the project already has real code or a non-trivial file base → default to **NO OpenSpec**.
+4. To force OpenSpec on, prepend \`[USE_OPENSPEC]\` to the analyze input. To force it off, prepend \`[NO_OPENSPEC]\`.
+5. When OpenSpec is enabled and \`openspec/changes/*/tasks.md\` exists, the analyzer will prefer the latest active OpenSpec task file.
+6. If OpenSpec is enabled and only proposal/spec/design exist, the analyzer will use them as planning context.
+7. OpenSpec checkbox format (\`- [ ] 1.1 Task\`) is auto-detected. Group N tasks depend on group N-1.
 
 ### Execution Loop
 1. Prefer running \`node flow.js next --batch\` when tasks are confirmed independent. **NOTE: this command will REFUSE to return tasks if any previous task is still \`active\`, or if the workflow is in \`reconciling\` state. In reconciling state you must adopt/restart/skip first, and restart may only follow handling of the listed task-owned changes. Ownership-ambiguous files must be reviewed manually; do not clear them with whole-file \`git restore\`. If write boundaries remain unclear, \`node flow.js next\` may be used for manual serialization.**

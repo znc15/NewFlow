@@ -653,17 +653,21 @@ Agent({ "name": "task-023", "description": "Task 023: ...", ... })
 
 **Path A \u2014 Standard (default):**
 1. Dispatch a sub-agent to read requirement docs and return a summary.
-2. Run \`node flow.js analyze --tasks\` to generate a task list. The analyzer will automatically fuse user requirements, project docs and OpenSpec context when available. **Throughput-first rule:** minimize dependencies; only add \`deps\` for true blocking/data dependencies. Prefer wider parallel frontiers over long chains whenever safe.
+2. Run \`node flow.js analyze --tasks\` to generate a task list. The analyzer will always fuse user requirements and project docs. OpenSpec is **adaptive**: only enable it for empty projects or sparse markdown-only projects unless you explicitly override it. **Throughput-first rule:** minimize dependencies; only add \`deps\` for true blocking/data dependencies. Prefer wider parallel frontiers over long chains whenever safe.
 3. Pipe analyzer output into init using this **exact format**:
 \`\`\`bash
 node flow.js analyze --tasks | node flow.js init
 \`\`\`
 Format: \`[type]\` = frontend/backend/general, \`(deps: N)\` = dependency IDs, indented lines = description. **Do not add decorative or "just to be safe" dependencies.**
 
-**OpenSpec Auto Fusion:**
-1. If \`openspec/changes/*/tasks.md\` exists, \`node flow.js analyze --tasks\` will prefer the latest active OpenSpec task file.
-2. If only proposal/spec/design exist, the analyzer will use them as planning context and generate FlowPilot task Markdown automatically.
-3. OpenSpec checkbox format (\`- [ ] 1.1 Task\`) is auto-detected. Group N tasks depend on group N-1.
+### OpenSpec Adaptive Gate
+1. Before running \`node flow.js analyze --tasks\`, the dispatcher **MUST** first ask itself: "Does this repo actually need OpenSpec for planning?"
+2. If the project is empty, or only has a few \`.md\` files with little/no real code \u2192 OpenSpec is recommended.
+3. If the project already has real code or a non-trivial file base \u2192 default to **NO OpenSpec**.
+4. To force OpenSpec on, prepend \`[USE_OPENSPEC]\` to the analyze input. To force it off, prepend \`[NO_OPENSPEC]\`.
+5. When OpenSpec is enabled and \`openspec/changes/*/tasks.md\` exists, the analyzer will prefer the latest active OpenSpec task file.
+6. If OpenSpec is enabled and only proposal/spec/design exist, the analyzer will use them as planning context.
+7. OpenSpec checkbox format (\`- [ ] 1.1 Task\`) is auto-detected. Group N tasks depend on group N-1.
 
 ### Execution Loop
 1. Prefer running \`node flow.js next --batch\` when tasks are confirmed independent. **NOTE: this command will REFUSE to return tasks if any previous task is still \`active\`, or if the workflow is in \`reconciling\` state. In reconciling state you must adopt/restart/skip first, and restart may only follow handling of the listed task-owned changes. Ownership-ambiguous files must be reviewed manually; do not clear them with whole-file \`git restore\`. If write boundaries remain unclear, \`node flow.js next\` may be used for manual serialization.**
@@ -4306,6 +4310,68 @@ function formatFinalSummary(data) {
 var import_promises10 = require("fs/promises");
 var import_path11 = require("path");
 var ANALYZER_REPORT_FILE = "analyzer-report.json";
+var SPARSE_DOCS_ONLY_FILE_LIMIT = 8;
+var MARKDOWN_FILE_RE = /\.md$/i;
+var FORCE_USE_OPENSPEC_RE = /\[(?:USE|ENABLE|FORCE)_OPENSPEC\]|(?:use|enable)\s+openspec|(?:使用|启用)\s*openspec/i;
+var FORCE_SKIP_OPENSPEC_RE = /\[(?:NO|SKIP|DISABLE)_OPENSPEC\]|(?:skip|disable|without|no)\s+openspec|(?:不使用|禁用|跳过)\s*openspec/i;
+var OPENSPEC_DIRECTIVE_RE = /\[(?:USE|ENABLE|FORCE|NO|SKIP|DISABLE)_OPENSPEC\]/gi;
+var IGNORED_PROJECT_DIRS = /* @__PURE__ */ new Set([
+  ".git",
+  ".workflow",
+  ".flowpilot",
+  ".claude",
+  ".codex",
+  "node_modules",
+  "dist",
+  "coverage",
+  "build",
+  "out",
+  "openspec"
+]);
+function detectOpenSpecDecision(input) {
+  if (FORCE_USE_OPENSPEC_RE.test(input)) return "force-on";
+  if (FORCE_SKIP_OPENSPEC_RE.test(input)) return "force-off";
+  return "auto";
+}
+function stripOpenSpecDirectives(input) {
+  return input.replace(OPENSPEC_DIRECTIVE_RE, "").replace(/\s+/g, " ").trim();
+}
+async function collectProjectFootprint(basePath2) {
+  const footprint = { fileCount: 0, markdownCount: 0, nonMarkdownCount: 0 };
+  async function walk(currentPath) {
+    let entries;
+    try {
+      entries = await (0, import_promises10.readdir)(currentPath, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (IGNORED_PROJECT_DIRS.has(entry.name)) continue;
+        await walk((0, import_path11.join)(currentPath, entry.name));
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      footprint.fileCount++;
+      if (MARKDOWN_FILE_RE.test(entry.name)) {
+        footprint.markdownCount++;
+      } else {
+        footprint.nonMarkdownCount++;
+      }
+      if (footprint.fileCount > SPARSE_DOCS_ONLY_FILE_LIMIT && footprint.nonMarkdownCount > 0) {
+        return;
+      }
+    }
+  }
+  await walk(basePath2);
+  return footprint;
+}
+function shouldUseOpenSpec(decision, footprint) {
+  if (decision === "force-on") return true;
+  if (decision === "force-off") return false;
+  if (footprint.fileCount === 0) return true;
+  return footprint.fileCount <= SPARSE_DOCS_ONLY_FILE_LIMIT && footprint.nonMarkdownCount === 0;
+}
 function tokenize3(text) {
   const tokens = /* @__PURE__ */ new Set();
   for (const m of text.toLowerCase().matchAll(/[a-z0-9_]+|[\u4e00-\u9fff]/g)) {
@@ -4437,16 +4503,19 @@ async function loadAnalyzerReport(basePath2) {
   return readTextFile((0, import_path11.join)(basePath2, ".workflow", ANALYZER_REPORT_FILE)).then((raw) => raw ? JSON.parse(raw) : null).catch(() => null);
 }
 async function analyzeTasks(basePath2, input) {
-  const trimmedInput = input.trim();
-  const openSpecTasks = await findLatestOpenSpecTasks(basePath2);
-  if (!trimmedInput && openSpecTasks) {
+  const decision = detectOpenSpecDecision(input);
+  const trimmedInput = stripOpenSpecDirectives(input.trim());
+  const footprint = await collectProjectFootprint(basePath2);
+  const useOpenSpec = shouldUseOpenSpec(decision, footprint);
+  const openSpecTasks = useOpenSpec ? await findLatestOpenSpecTasks(basePath2) : null;
+  if (openSpecTasks) {
     const report2 = {
       generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       planningSource: "openspec-tasks",
-      workflowType: "feat",
-      workflowTitle: deriveWorkflowTitle(openSpecTasks.content),
-      originalRequest: openSpecTasks.content,
-      assumptions: ["\u9ED8\u8BA4\u91C7\u7528 OpenSpec \u751F\u6210\u7684\u4EFB\u52A1\u6E05\u5355"],
+      workflowType: deriveWorkflowType(trimmedInput || openSpecTasks.content),
+      workflowTitle: deriveWorkflowTitle(trimmedInput || openSpecTasks.content),
+      originalRequest: trimmedInput || openSpecTasks.content,
+      assumptions: decision === "force-on" ? ["\u5DF2\u6839\u636E\u5206\u6790\u8F93\u5165\u663E\u5F0F\u542F\u7528 OpenSpec \u4EFB\u52A1\u6E05\u5355"] : ["\u9ED8\u8BA4\u91C7\u7528 OpenSpec \u751F\u6210\u7684\u4EFB\u52A1\u6E05\u5355"],
       acceptanceCriteria: buildAcceptanceCriteria(splitRequirements(openSpecTasks.content)),
       openspecSources: [openSpecTasks.path],
       tasksMarkdown: openSpecTasks.content
@@ -4454,7 +4523,7 @@ async function analyzeTasks(basePath2, input) {
     await saveAnalyzerReport(basePath2, report2);
     return report2;
   }
-  const openSpecDocs = await collectOpenSpecDocs(basePath2);
+  const openSpecDocs = useOpenSpec ? await collectOpenSpecDocs(basePath2) : [];
   const projectDocs = (await Promise.all([
     readTextFile((0, import_path11.join)(basePath2, "README.md")),
     readTextFile((0, import_path11.join)(basePath2, "AGENTS.md")),
@@ -4469,13 +4538,13 @@ async function analyzeTasks(basePath2, input) {
   const workflowTitle = deriveWorkflowTitle(trimmedInput || openSpecDocs[0]?.content || projectDocs[0] || "\u81EA\u52A8\u5206\u6790\u5DE5\u4F5C\u6D41");
   const report = {
     generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    planningSource: openSpecDocs.length > 0 ? "openspec-docs" : "analyzer",
+    planningSource: useOpenSpec && openSpecDocs.length > 0 ? "openspec-docs" : "analyzer",
     workflowType: deriveWorkflowType(trimmedInput || combinedInput),
     workflowTitle,
     originalRequest: trimmedInput || workflowTitle,
     assumptions: buildAssumptions(combinedInput),
     acceptanceCriteria: buildAcceptanceCriteria(requirements),
-    openspecSources: openSpecDocs.map((doc) => doc.path),
+    openspecSources: useOpenSpec ? openSpecDocs.map((doc) => doc.path) : [],
     tasksMarkdown: buildTasksMarkdown(workflowTitle, requirements)
   };
   await saveAnalyzerReport(basePath2, report);

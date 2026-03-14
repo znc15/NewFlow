@@ -55,8 +55,8 @@ stateDiagram-v2
 | 优先级 | 来源 | 说明 |
 |---|---|---|
 | 1 | 显式传入的任务列表 | 你直接 pipe 给 `init` 的内容 |
-| 2 | `openspec/changes/*/tasks.md` | 自动选择最近活跃的 OpenSpec 任务文件 |
-| 3 | OpenSpec proposal/spec/design | 自动作为分析上下文 |
+| 2 | `openspec/changes/*/tasks.md` | 仅在空项目或稀疏 markdown-only 项目中默认启用，也可显式强制启用 |
+| 3 | OpenSpec proposal/spec/design | 仅在启用 OpenSpec 时作为分析上下文 |
 | 4 | 内置分析器 | `node flow.js analyze --tasks` 自动生成 |
 
 ## 目录结构
@@ -121,12 +121,14 @@ flowchart LR
 
 ## OpenSpec 集成
 
-NewFlow 已将 OpenSpec 作为一等输入源：
+NewFlow 会按项目规模自适应决定是否启用 OpenSpec：
 
-- 有 `tasks.md` 时优先直接使用
-- 只有 proposal/spec/design 时会自动融合为分析上下文
+- 空项目，或只有少量 `.md` 文件的稀疏项目，默认优先启用 OpenSpec
+- 已有明显代码基座的项目，默认不启用 OpenSpec
+- Agent 可通过 `[USE_OPENSPEC]` / `[NO_OPENSPEC]` 显式覆盖自动判断
+- 启用后，有 `tasks.md` 时优先直接使用；只有 proposal/spec/design 时再融合为分析上下文
 - OpenSpec checkbox 任务格式会被自动识别
-- 最终 expectation gate 会优先参考 OpenSpec 中的验收信息
+- 最终 expectation gate 会优先参考已启用的 OpenSpec 验收信息
 
 ## 适合什么场景
 

@@ -5,3 +5,4 @@ node_modules/
 .claude/settings.json
 .claude/worktrees/
 .ace-tool/
+docs/plans

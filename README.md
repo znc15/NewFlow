@@ -5,7 +5,7 @@
 **基于 [FlowPilot](https://github.com/6BNBN/FlowPilot) 开发。**
 
 NewFlow 是一个面向 `Claude Code`、`Codex`、`Cursor`、`snow-cli` 等客户端的自动工作流调度器。  
-它会自动分析需求、融合 OpenSpec、并行派发任务、记录 checkpoint、执行 `review -> audit -> expectation gate`，并在目标分支最终生成一条中文规范提交。
+它会自动分析需求、按项目规模按需融合 OpenSpec、并行派发任务、记录 checkpoint、执行 `review -> audit -> expectation gate`，并在目标分支最终生成一条中文规范提交。
 
 ## 快速启动
 

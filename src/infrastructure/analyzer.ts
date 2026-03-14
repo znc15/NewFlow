@@ -8,6 +8,32 @@ import { join } from 'path';
 import type { ProgressData, TaskEntry, WorkflowMeta } from '../domain/types';
 
 const ANALYZER_REPORT_FILE = 'analyzer-report.json';
+const SPARSE_DOCS_ONLY_FILE_LIMIT = 8;
+const MARKDOWN_FILE_RE = /\.md$/i;
+const FORCE_USE_OPENSPEC_RE = /\[(?:USE|ENABLE|FORCE)_OPENSPEC\]|(?:use|enable)\s+openspec|(?:使用|启用)\s*openspec/i;
+const FORCE_SKIP_OPENSPEC_RE = /\[(?:NO|SKIP|DISABLE)_OPENSPEC\]|(?:skip|disable|without|no)\s+openspec|(?:不使用|禁用|跳过)\s*openspec/i;
+const OPENSPEC_DIRECTIVE_RE = /\[(?:USE|ENABLE|FORCE|NO|SKIP|DISABLE)_OPENSPEC\]/gi;
+const IGNORED_PROJECT_DIRS = new Set([
+  '.git',
+  '.workflow',
+  '.flowpilot',
+  '.claude',
+  '.codex',
+  'node_modules',
+  'dist',
+  'coverage',
+  'build',
+  'out',
+  'openspec',
+]);
+
+type OpenSpecDecision = 'auto' | 'force-on' | 'force-off';
+
+interface ProjectFootprint {
+  fileCount: number;
+  markdownCount: number;
+  nonMarkdownCount: number;
+}
 
 export interface AnalyzerReport {
   generatedAt: string;
@@ -19,6 +45,63 @@ export interface AnalyzerReport {
   acceptanceCriteria: string[];
   openspecSources: string[];
   tasksMarkdown: string;
+}
+
+/** 解析输入中的 OpenSpec 强制指令 */
+function detectOpenSpecDecision(input: string): OpenSpecDecision {
+  if (FORCE_USE_OPENSPEC_RE.test(input)) return 'force-on';
+  if (FORCE_SKIP_OPENSPEC_RE.test(input)) return 'force-off';
+  return 'auto';
+}
+
+/** 去掉分析输入中的 OpenSpec 控制标记，避免污染后续任务标题 */
+function stripOpenSpecDirectives(input: string): string {
+  return input.replace(OPENSPEC_DIRECTIVE_RE, '').replace(/\s+/g, ' ').trim();
+}
+
+/** 统计项目真实文件规模，排除运行目录和 openspec 目录本身 */
+async function collectProjectFootprint(basePath: string): Promise<ProjectFootprint> {
+  const footprint: ProjectFootprint = { fileCount: 0, markdownCount: 0, nonMarkdownCount: 0 };
+
+  async function walk(currentPath: string): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(currentPath, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (IGNORED_PROJECT_DIRS.has(entry.name)) continue;
+        await walk(join(currentPath, entry.name));
+        continue;
+      }
+      if (!entry.isFile()) continue;
+
+      footprint.fileCount++;
+      if (MARKDOWN_FILE_RE.test(entry.name)) {
+        footprint.markdownCount++;
+      } else {
+        footprint.nonMarkdownCount++;
+      }
+
+      if (footprint.fileCount > SPARSE_DOCS_ONLY_FILE_LIMIT && footprint.nonMarkdownCount > 0) {
+        return;
+      }
+    }
+  }
+
+  await walk(basePath);
+  return footprint;
+}
+
+/** 根据项目规模与显式指令决定是否启用 OpenSpec */
+function shouldUseOpenSpec(decision: OpenSpecDecision, footprint: ProjectFootprint): boolean {
+  if (decision === 'force-on') return true;
+  if (decision === 'force-off') return false;
+  if (footprint.fileCount === 0) return true;
+  return footprint.fileCount <= SPARSE_DOCS_ONLY_FILE_LIMIT && footprint.nonMarkdownCount === 0;
 }
 
 function tokenize(text: string): Set<string> {
@@ -178,16 +261,21 @@ export async function loadAnalyzerReport(basePath: string): Promise<AnalyzerRepo
 }
 
 export async function analyzeTasks(basePath: string, input: string): Promise<AnalyzerReport> {
-  const trimmedInput = input.trim();
-  const openSpecTasks = await findLatestOpenSpecTasks(basePath);
-  if (!trimmedInput && openSpecTasks) {
+  const decision = detectOpenSpecDecision(input);
+  const trimmedInput = stripOpenSpecDirectives(input.trim());
+  const footprint = await collectProjectFootprint(basePath);
+  const useOpenSpec = shouldUseOpenSpec(decision, footprint);
+  const openSpecTasks = useOpenSpec ? await findLatestOpenSpecTasks(basePath) : null;
+  if (openSpecTasks) {
     const report: AnalyzerReport = {
       generatedAt: new Date().toISOString(),
       planningSource: 'openspec-tasks',
-      workflowType: 'feat',
-      workflowTitle: deriveWorkflowTitle(openSpecTasks.content),
-      originalRequest: openSpecTasks.content,
-      assumptions: ['默认采用 OpenSpec 生成的任务清单'],
+      workflowType: deriveWorkflowType(trimmedInput || openSpecTasks.content),
+      workflowTitle: deriveWorkflowTitle(trimmedInput || openSpecTasks.content),
+      originalRequest: trimmedInput || openSpecTasks.content,
+      assumptions: decision === 'force-on'
+        ? ['已根据分析输入显式启用 OpenSpec 任务清单']
+        : ['默认采用 OpenSpec 生成的任务清单'],
       acceptanceCriteria: buildAcceptanceCriteria(splitRequirements(openSpecTasks.content)),
       openspecSources: [openSpecTasks.path],
       tasksMarkdown: openSpecTasks.content,
@@ -196,7 +284,7 @@ export async function analyzeTasks(basePath: string, input: string): Promise<Ana
     return report;
   }
 
-  const openSpecDocs = await collectOpenSpecDocs(basePath);
+  const openSpecDocs = useOpenSpec ? await collectOpenSpecDocs(basePath) : [];
   const projectDocs = (await Promise.all([
     readTextFile(join(basePath, 'README.md')),
     readTextFile(join(basePath, 'AGENTS.md')),
@@ -212,13 +300,13 @@ export async function analyzeTasks(basePath: string, input: string): Promise<Ana
   const workflowTitle = deriveWorkflowTitle(trimmedInput || openSpecDocs[0]?.content || projectDocs[0] || '自动分析工作流');
   const report: AnalyzerReport = {
     generatedAt: new Date().toISOString(),
-    planningSource: openSpecDocs.length > 0 ? 'openspec-docs' : 'analyzer',
+    planningSource: useOpenSpec && openSpecDocs.length > 0 ? 'openspec-docs' : 'analyzer',
     workflowType: deriveWorkflowType(trimmedInput || combinedInput),
     workflowTitle,
     originalRequest: trimmedInput || workflowTitle,
     assumptions: buildAssumptions(combinedInput),
     acceptanceCriteria: buildAcceptanceCriteria(requirements),
-    openspecSources: openSpecDocs.map(doc => doc.path),
+    openspecSources: useOpenSpec ? openSpecDocs.map(doc => doc.path) : [],
     tasksMarkdown: buildTasksMarkdown(workflowTitle, requirements),
   };
   await saveAnalyzerReport(basePath, report);
