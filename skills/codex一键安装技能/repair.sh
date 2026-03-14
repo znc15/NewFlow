@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# GENERATED FILE - DO NOT EDIT
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)

@@ -1,3 +1,4 @@
+# GENERATED FILE - DO NOT EDIT
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot

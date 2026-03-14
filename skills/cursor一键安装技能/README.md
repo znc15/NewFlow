@@ -1,3 +1,4 @@
+<!-- GENERATED FILE - DO NOT EDIT -->
 ﻿# Cursor 技能与 MCP 安装包
 
 这是 **仅面向 Cursor** 的发布包。

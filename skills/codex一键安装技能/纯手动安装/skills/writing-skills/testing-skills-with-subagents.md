@@ -12,7 +12,7 @@ You run scenarios without the skill (RED - watch agent fail), write skill addres
 
 **REQUIRED BACKGROUND:** You MUST understand superpowers:test-driven-development before using this skill. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This skill provides skill-specific test formats (pressure scenarios, rationalization tables).
 
-**Complete worked example:** See examples/CLAUDE_MD_TESTING.md for a full test campaign testing AGENTS.md documentation variants.
+**Complete worked example:** See examples/CLAUDE_MD_TESTING.md for a full test campaign testing CLAUDE.md documentation variants.
 
 ## When to Use
 
@@ -331,29 +331,29 @@ Before deploying skill, verify you followed RED-GREEN-REFACTOR:
 
 ## Common Mistakes (Same as TDD)
 
-**閴?Writing skill before testing (skipping RED)**
+**❌ Writing skill before testing (skipping RED)**
 Reveals what YOU think needs preventing, not what ACTUALLY needs preventing.
-閴?Fix: Always run baseline scenarios first.
+✅ Fix: Always run baseline scenarios first.
 
-**閴?Not watching test fail properly**
+**❌ Not watching test fail properly**
 Running only academic tests, not real pressure scenarios.
-閴?Fix: Use pressure scenarios that make agent WANT to violate.
+✅ Fix: Use pressure scenarios that make agent WANT to violate.
 
-**閴?Weak test cases (single pressure)**
+**❌ Weak test cases (single pressure)**
 Agents resist single pressure, break under multiple.
-閴?Fix: Combine 3+ pressures (time + sunk cost + exhaustion).
+✅ Fix: Combine 3+ pressures (time + sunk cost + exhaustion).
 
-**閴?Not capturing exact failures**
+**❌ Not capturing exact failures**
 "Agent was wrong" doesn't tell you what to prevent.
-閴?Fix: Document exact rationalizations verbatim.
+✅ Fix: Document exact rationalizations verbatim.
 
-**閴?Vague fixes (adding generic counters)**
+**❌ Vague fixes (adding generic counters)**
 "Don't cheat" doesn't work. "Don't keep as reference" does.
-閴?Fix: Add explicit negations for each specific rationalization.
+✅ Fix: Add explicit negations for each specific rationalization.
 
-**閴?Stopping after first pass**
-Tests pass once 閳?bulletproof.
-閴?Fix: Continue REFACTOR cycle until no new rationalizations.
+**❌ Stopping after first pass**
+Tests pass once ≠ bulletproof.
+✅ Fix: Continue REFACTOR cycle until no new rationalizations.
 
 ## Quick Reference (TDD Cycle)
 

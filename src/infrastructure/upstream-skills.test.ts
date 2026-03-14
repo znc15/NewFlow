@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PACKAGE_SOURCE_ROOT } from './skills-package-pipeline';
 import {
   LOCAL_ONLY_SKILLS,
   PACKAGED_SKILL_ROOTS,
@@ -9,6 +10,7 @@ import {
 
 describe('upstream-skills', () => {
   it('defines all packaged skill roots that receive synced snapshots', () => {
+    expect(PACKAGE_SOURCE_ROOT).toBe('skills-src');
     expect(PACKAGED_SKILL_ROOTS).toEqual([
       'skills/codex一键安装技能/.codex-home-claude-parity/skills',
       'skills/codex一键安装技能/纯手动安装/skills',
@@ -30,13 +32,21 @@ describe('upstream-skills', () => {
       'frontend-design',
       'playwright',
       'ui-ux-pro-max',
-      'superpowers',
+      'using-superpowers',
     ]));
   });
 
-  it('keeps feature-dev as a local-only skill', () => {
-    expect(LOCAL_ONLY_SKILLS).toContain('feature-dev');
-    expect(getTrackedUpstreamSkillNames()).not.toContain('feature-dev');
+  it('keeps locally maintained skills outside upstream sync', () => {
+    expect(LOCAL_ONLY_SKILLS).toEqual(expect.arrayContaining([
+      'feature-dev',
+      'code-review',
+      'superpowers',
+    ]));
+    expect(getTrackedUpstreamSkillNames()).not.toEqual(expect.arrayContaining([
+      'feature-dev',
+      'code-review',
+      'superpowers',
+    ]));
   });
 
   it('builds a sync plan that targets every packaged root for every tracked skill', () => {

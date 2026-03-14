@@ -4,6 +4,7 @@ node_modules/
 .flowpilot/
 .claude/settings.json
 .claude/worktrees/
+.worktrees/
 .ace-tool/
 docs/plans
 dist/

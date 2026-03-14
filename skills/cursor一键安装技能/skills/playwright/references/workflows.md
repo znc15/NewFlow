@@ -1,12 +1,12 @@
-﻿# Playwright CLI Workflows
+# Playwright CLI Workflows
 
-Use the bundled wrapper script and snapshot often.
-Assume `PWCLI` is set and `pwcli` is a convenience function or alias.
-In this repo, run commands from `output/playwright/<label>/` when you want to keep artifacts contained.
+Use the wrapper script and snapshot often.
+Assume `PWCLI` is set and `pwcli` is an alias for `"$PWCLI"`.
+In this repo, run commands from `output/playwright/<label>/` to keep artifacts contained.
 
 ## Standard interaction loop
 
-```powershell
+```bash
 pwcli open https://example.com
 pwcli snapshot
 pwcli click e3
@@ -15,7 +15,7 @@ pwcli snapshot
 
 ## Form submission
 
-```powershell
+```bash
 pwcli open https://example.com/form --headed
 pwcli snapshot
 pwcli fill e1 "user@example.com"
@@ -27,7 +27,7 @@ pwcli screenshot
 
 ## Data extraction
 
-```powershell
+```bash
 pwcli open https://example.com
 pwcli snapshot
 pwcli eval "document.title"
@@ -38,14 +38,14 @@ pwcli eval "el => el.textContent" e12
 
 Capture console messages and network activity after reproducing an issue:
 
-```powershell
+```bash
 pwcli console warning
 pwcli network
 ```
 
 Record a trace around a suspicious flow:
 
-```powershell
+```bash
 pwcli tracing-start
 # reproduce the issue
 pwcli tracing-stop
@@ -56,22 +56,13 @@ pwcli screenshot
 
 Use sessions to isolate work across projects:
 
-```powershell
+```bash
 pwcli --session marketing open https://example.com
 pwcli --session marketing snapshot
 pwcli --session checkout open https://example.com/checkout
 ```
 
-Or set the session once.
-
-PowerShell:
-
-```powershell
-$env:PLAYWRIGHT_CLI_SESSION = "checkout"
-pwcli open https://example.com/checkout
-```
-
-Bash:
+Or set the session once:
 
 ```bash
 export PLAYWRIGHT_CLI_SESSION=checkout

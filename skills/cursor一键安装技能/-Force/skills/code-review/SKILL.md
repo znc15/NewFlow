@@ -1,39 +1,78 @@
 ---
 name: code-review
-description: Use when the user asks for a code review of local files, a workspace, a branch diff, or a pull request. Focus on real bugs, regressions, accessibility issues, and misleading behavior, with findings ordered by severity.
+description: Use when the user asks to review a pull request or diff with a structured Codex CLI workflow using parallel review passes and filtered actionable findings.
 ---
-# Code Review
 
-## Goal
-Find real issues first. Prioritize correctness, regressions, accessibility, security, and misleading UX over style commentary.
+# Codex-Native PR Code Review
 
-## Scope Selection
-- If the user names files or paths, review those first.
-- If there are local changes, review the changed files and relevant nearby context.
-- If a branch diff or pull request is provided, review the diff and then read surrounding code only where needed.
-- If scope is unclear, ask what should be reviewed instead of scanning the entire repo blindly.
+Use this workflow to review a pull request or diff with gh when available. Keep findings high-signal, actionable, and grounded in the actual change.
+
+## Source of truth
+- eferences/code-review-command.md
 
 ## Review Workflow
-1. Understand the intent of the change.
-2. Inspect the relevant files, diffs, and nearby code paths.
-3. Look for real execution risks: wrong logic, missing edge cases, state bugs, API misuse, broken UX flows, accessibility problems, and misleading UI behavior.
-4. Validate each suspected issue against the actual code before reporting it.
-5. Report only high-signal findings.
 
-## Output Format
-- List findings first, ordered by severity.
-- For each finding include:
-  - severity
-  - file or scope
-  - concise explanation
-  - suggested fix when clear
-- If no findings are found, say so explicitly and mention residual risks or testing gaps.
+1. **Eligibility check**
+   - Confirm the PR is still open and ready for review.
+   - Skip review if it is clearly out of scope, already handled, or obviously trivial.
 
-## Avoid
-- Praise-first reviews that bury the real issues.
-- Pure formatting or style nitpicks unless the user asked for them.
-- Reporting speculative issues without evidence.
-- Treating missing tests as the main finding unless the risk is concrete.
+2. **Collect local guidance**
+   - Identify the relevant AGENTS.md files for the touched paths.
+   - Treat those files as code-review guidance when applicable.
 
-## Optional PR Workflow
-If GitHub or git context is available, include PR or diff context. If not, do a local review and clearly state what information was unavailable.
+3. **Summarize the change**
+   - Use one fast subagent to summarize the PR and changed areas.
+
+4. **Run parallel review passes**
+   - Launch independent review subagents with different lenses:
+     - conventions and AGENTS.md compliance
+     - correctness and bug risk
+     - history and git blame context
+     - prior PR or discussion context when relevant
+     - comments or invariants near the changed code
+
+5. **Confidence-check findings**
+   - Re-check each finding with a separate pass before surfacing it.
+   - Drop weak or speculative issues.
+
+6. **Filter for signal**
+   - Ignore trivial lint, formatting, or typecheck issues that CI should catch separately.
+   - Ignore pre-existing issues unless the current PR makes them worse.
+   - Keep only the issues that matter to a senior engineer reviewing this change.
+
+7. **Comment or report**
+   - If the user asked for a GitHub comment, use gh to post it.
+   - Otherwise, present the findings directly in the session.
+
+## Comment Format
+
+Use this structure for final findings:
+
+`markdown
+### Code review
+
+Found 2 issues:
+
+1. Brief description of issue
+   - Why it matters
+   - Evidence: file path or URL with full commit SHA when linking to GitHub
+
+2. Brief description of issue
+   - Why it matters
+   - Evidence: file path or URL with full commit SHA when linking to GitHub
+`
+
+If no issues remain after filtering:
+
+`markdown
+### Code review
+
+No actionable issues found. Checked for correctness, local guidance, and regression risk.
+`
+
+## Review Rules
+
+- Use gh for GitHub operations when available.
+- Prefer concrete evidence over speculation.
+- Keep comments brief and free of signatures or emojis.
+- Cite paths or links precisely when pointing to code.

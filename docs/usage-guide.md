@@ -677,11 +677,21 @@ CC 自动 compact 后，说"继续任务"即可恢复。所有状态都在文件
 
 > 这是可选增强项。不安装也能正常使用 FlowPilot，只是 Skills / MCP 相关能力会降级。
 
-仓库内置了兼容 `Codex CLI` 与 `Cursor` 的一键安装包：
+仓库内置了兼容 `Codex CLI` 与 `Cursor` 的一键安装包。
 
-- 总目录：[`兼容codex@cursor一键安装技能/`](/work2026/tools/FlowPilot/兼容codex@cursor一键安装技能)
-- Codex 包：[`兼容codex@cursor一键安装技能/codex一键安装技能/`](/work2026/tools/FlowPilot/兼容codex@cursor一键安装技能/codex一键安装技能)
-- Cursor 包：[`兼容codex@cursor一键安装技能/cursor一键安装技能/`](/work2026/tools/FlowPilot/兼容codex@cursor一键安装技能/cursor一键安装技能)
+如果你在维护这个仓库本身，而不是单纯使用安装包，请记住：
+
+- 可编辑源码目录：`skills-src/`
+- 生成产物目录：`skills/codex一键安装技能/`、`skills/cursor一键安装技能/`
+- 重新生成命令：`npm run sync:skills`
+
+也就是说，修改脚本、README、手动安装说明或本地保留技能时，应优先改 `skills-src/`，然后再运行生成命令。
+
+可直接使用的发布包目录：
+
+- 总目录：[`skills/`](/Users/littlesheep/Desktop/FlowPilot/.worktrees/skills-package-source-of-truth/skills)
+- Codex 包：[`skills/codex一键安装技能/`](/Users/littlesheep/Desktop/FlowPilot/.worktrees/skills-package-source-of-truth/skills/codex一键安装技能)
+- Cursor 包：[`skills/cursor一键安装技能/`](/Users/littlesheep/Desktop/FlowPilot/.worktrees/skills-package-source-of-truth/skills/cursor一键安装技能)
 
 选择规则：
 - 给 `Codex CLI` 安装技能 / MCP：使用 `codex一键安装技能/`
@@ -691,12 +701,12 @@ CC 自动 compact 后，说"继续任务"即可恢复。所有状态都在文件
 
 ```bash
 # Codex（macOS / Linux）
-cd "兼容codex@cursor一键安装技能/codex一键安装技能"
+cd "skills/codex一键安装技能"
 chmod +x install.sh repair.sh
 ./install.sh --force
 
 # Cursor（macOS / Linux）
-cd "兼容codex@cursor一键安装技能/cursor一键安装技能"
+cd "skills/cursor一键安装技能"
 chmod +x install_cursor_skills.sh repair_cursor_skills.sh self_check_cursor_skills.sh
 ./install_cursor_skills.sh
 ```
