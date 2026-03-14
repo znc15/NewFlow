@@ -7,8 +7,8 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { execSync } from 'child_process';
 
-const REPO_OWNER = '6BNBN';
-const REPO_NAME = 'FlowPilot';
+const REPO_OWNER = 'znc15';
+const REPO_NAME = 'NewFlow';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
 const RELEASE_URL = 'https://github.com/' + REPO_OWNER + '/' + REPO_NAME + '/releases';
 
