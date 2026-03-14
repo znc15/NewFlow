@@ -365,6 +365,36 @@ describe('FsWorkflowRepository', () => {
     expect(settings.hooks.PreToolUse[0].matcher).toBe('OtherTool');
   });
 
+  it('cleanupInjections 保留用户的 command hook', async () => {
+    await mkdir(join(dir, '.claude'), { recursive: true });
+    await writeFile(join(dir, '.claude', 'settings.json'), JSON.stringify({
+      model: 'opus',
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'OtherTool',
+            hooks: [{ type: 'command', command: 'echo keep me', statusMessage: 'keep me' }],
+          },
+        ],
+      },
+    }, null, 2) + '\n', 'utf-8');
+
+    await repo.ensureHooks();
+    await repo.cleanupInjections();
+
+    expect(JSON.parse(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8'))).toEqual({
+      model: 'opus',
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'OtherTool',
+            hooks: [{ type: 'command', command: 'echo keep me', statusMessage: 'keep me' }],
+          },
+        ],
+      },
+    });
+  });
+
   it('cleanupInjections 仅移除完全匹配的 hook 条目并保留同 matcher 的自定义 hook', async () => {
     await repo.ensureHooks();
     const settingsPath = join(dir, '.claude', 'settings.json');
@@ -519,6 +549,47 @@ describe('FsWorkflowRepository', () => {
     expect(settings.model).toBe('opus');
     expect(preToolUse.map(entry => entry.matcher)).toEqual(['TaskCreate', 'OtherTool', 'TaskUpdate', 'TaskList', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Explore']);
     expect(preToolUse.filter(entry => entry.matcher === 'TaskCreate')).toHaveLength(1);
+  });
+
+  it('ensureHooks 替换旧的 FlowPilot 任务 hook，并保留无关 command hook', async () => {
+    await mkdir(join(dir, '.claude'), { recursive: true });
+    await writeFile(join(dir, '.claude', 'settings.json'), JSON.stringify({
+      model: 'opus',
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'TaskCreate',
+            hooks: [{ type: 'command', command: 'node flow.js guard TaskCreate', statusMessage: 'legacy FlowPilot hook' }],
+          },
+          {
+            matcher: 'OtherTool',
+            hooks: [{ type: 'command', command: 'echo keep me', statusMessage: 'keep me' }],
+          },
+        ],
+      },
+    }, null, 2) + '\n', 'utf-8');
+
+    await expect(repo.ensureHooks()).resolves.toBe(true);
+
+    const settings = JSON.parse(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8'));
+    const preToolUse = settings.hooks.PreToolUse as Array<{
+      matcher: string;
+      hooks: Array<Record<string, unknown>>;
+    }>;
+    const taskCreate = preToolUse.find(entry => entry.matcher === 'TaskCreate');
+    const otherTool = preToolUse.find(entry => entry.matcher === 'OtherTool');
+
+    expect(taskCreate).toEqual({
+      matcher: 'TaskCreate',
+      hooks: [{
+        type: 'prompt',
+        prompt: 'BLOCK this tool call. FlowPilot requires using node flow.js commands instead of native task tools.',
+      }],
+    });
+    expect(otherTool).toEqual({
+      matcher: 'OtherTool',
+      hooks: [{ type: 'command', command: 'echo keep me', statusMessage: 'keep me' }],
+    });
   });
 
   it('ensureHooks 忽略畸形的 PreToolUse 项并继续补齐缺失 hooks', async () => {

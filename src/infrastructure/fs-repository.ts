@@ -51,6 +51,8 @@ const ROLE_INSTRUCTION_FILE = 'ROLE.md';
 const FLOWPILOT_MARKER_START = '<!-- flowpilot:start -->';
 const FLOWPILOT_MARKER_END = '<!-- flowpilot:end -->';
 const BLOCKED_NATIVE_TOOLS = ['TaskCreate', 'TaskUpdate', 'TaskList', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Explore'];
+const BLOCKED_NATIVE_TOOL_SET = new Set(BLOCKED_NATIVE_TOOLS);
+const FLOWPILOT_HOOK_SIGNATURES = ['flowpilot', 'flow.js'];
 
 const VALID_WORKFLOW_STATUS = new Set(['idle', 'running', 'reconciling', 'finishing', 'completed', 'aborted']);
 const VALID_TASK_STATUS = new Set(['pending', 'active', 'done', 'skipped', 'failed']);
@@ -146,33 +148,101 @@ type CleanupEffect =
   | { effect: 'write'; content: string }
   | { effect: 'delete' };
 
-function dedupeHookEntries(entries: HookEntry[]): HookEntry[] {
+interface StoredHookHandler {
+  type: string;
+  [key: string]: unknown;
+}
+
+interface StoredHookEntry {
+  matcher: string;
+  hooks: unknown[];
+  [key: string]: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cloneJsonValue<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map(item => cloneJsonValue(item)) as T;
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [key, cloneJsonValue(entryValue)]),
+    ) as T;
+  }
+  return value;
+}
+
+function isStoredHookEntry(value: unknown): value is StoredHookEntry {
+  return isRecord(value)
+    && typeof value.matcher === 'string'
+    && Array.isArray(value.hooks);
+}
+
+function isStoredHookHandler(value: unknown): value is StoredHookHandler {
+  if (!isRecord(value) || typeof value.type !== 'string') {
+    return false;
+  }
+
+  switch (value.type) {
+    case 'prompt':
+    case 'agent':
+      return typeof value.prompt === 'string';
+    case 'command':
+      return typeof value.command === 'string';
+    case 'http':
+      return typeof value.url === 'string';
+    default:
+      return false;
+  }
+}
+
+function isValidStoredHookEntry(value: unknown): value is StoredHookEntry {
+  return isStoredHookEntry(value)
+    && value.hooks.every(isStoredHookHandler);
+}
+
+function cloneStoredHookEntry<T extends StoredHookEntry>(entry: T): T {
+  return cloneJsonValue(entry);
+}
+
+function dedupeHookEntries(entries: StoredHookEntry[]): StoredHookEntry[] {
   const seen = new Set<string>();
-  const result: HookEntry[] = [];
+  const result: StoredHookEntry[] = [];
   for (const entry of entries) {
     if (seen.has(entry.matcher)) continue;
     seen.add(entry.matcher);
-    result.push({
-      matcher: entry.matcher,
-      hooks: entry.hooks.map(hook => ({ type: hook.type, prompt: hook.prompt })),
-    });
+    result.push(cloneStoredHookEntry(entry));
   }
   return result;
 }
 
-function isHookEntry(value: unknown): value is HookEntry {
-  return Boolean(value)
-    && typeof value === 'object'
-    && typeof (value as HookEntry).matcher === 'string'
-    && Array.isArray((value as HookEntry).hooks)
-    && (value as HookEntry).hooks.every(hook => Boolean(hook) && typeof hook.type === 'string' && typeof hook.prompt === 'string');
+function containsFlowPilotHookSignature(value: unknown): boolean {
+  return typeof value === 'string'
+    && FLOWPILOT_HOOK_SIGNATURES.some(signature => value.toLowerCase().includes(signature));
 }
 
-function serializeHookEntry(entry: HookEntry): string {
+function isLegacyFlowPilotHookEntry(entry: StoredHookEntry): boolean {
+  return BLOCKED_NATIVE_TOOL_SET.has(entry.matcher)
+    && entry.hooks.some(hook => isRecord(hook)
+      && (
+        containsFlowPilotHookSignature(hook.prompt)
+        || containsFlowPilotHookSignature(hook.command)
+        || containsFlowPilotHookSignature(hook.url)
+      ));
+}
+
+function serializeHookEntry(entry: { matcher: string; hooks: unknown[] }): string {
   return JSON.stringify({
     matcher: entry.matcher,
-    hooks: entry.hooks.map(hook => ({ type: hook.type, prompt: hook.prompt })),
+    hooks: entry.hooks.map(hook => cloneJsonValue(hook)),
   });
+}
+
+function isCanonicalFlowPilotHookEntry(entry: StoredHookEntry): boolean {
+  return serializeHookEntry(entry) === serializeHookEntry(hookEntry(entry.matcher));
 }
 
 function normalizeCleanupContent(content: string): string {
@@ -295,7 +365,7 @@ function cleanupHookSettings(settings: Record<string, unknown>, manifest: SetupI
     : {};
   const currentPreToolUse = hooks.PreToolUse;
   const existingPreToolUse = Array.isArray(currentPreToolUse)
-    ? currentPreToolUse.filter(isHookEntry)
+    ? currentPreToolUse.filter(isStoredHookEntry).map(cloneStoredHookEntry)
     : [];
 
   const ownedCounts = hooksManifest.preToolUse.reduce<Map<string, number>>((counts, entry) => {
@@ -722,9 +792,16 @@ export class FsWorkflowRepository implements WorkflowRepository {
       : {};
     const currentPreToolUse = hooks.PreToolUse;
     const existingPreToolUse = Array.isArray(currentPreToolUse)
-      ? currentPreToolUse.filter(isHookEntry)
+      ? currentPreToolUse.filter(isStoredHookEntry).map(cloneStoredHookEntry)
       : [];
-    const existingMatchers = new Set(existingPreToolUse
+    const replacedMatchers = new Set(existingPreToolUse
+      .filter(entry => BLOCKED_NATIVE_TOOL_SET.has(entry.matcher))
+      .filter(entry => !isValidStoredHookEntry(entry)
+        || (isLegacyFlowPilotHookEntry(entry) && !isCanonicalFlowPilotHookEntry(entry)))
+      .map(entry => entry.matcher));
+    const preservedPreToolUse = existingPreToolUse
+      .filter(entry => !replacedMatchers.has(entry.matcher));
+    const existingMatchers = new Set(preservedPreToolUse
       .map(entry => entry.matcher)
       .filter((matcher): matcher is string => Boolean(matcher)));
     const missingPreToolUse = requiredPreToolUse.filter(entry => !existingMatchers.has(entry.matcher));
@@ -734,7 +811,7 @@ export class FsWorkflowRepository implements WorkflowRepository {
       ...settings,
       hooks: {
         ...hooks,
-        PreToolUse: dedupeHookEntries([...existingPreToolUse, ...missingPreToolUse]),
+        PreToolUse: dedupeHookEntries([...preservedPreToolUse, ...missingPreToolUse]),
       },
     };
 
