@@ -1,0 +1,133 @@
+/**
+ * @module domain/repository
+ * @description 仓储接口 - 持久化契约
+ */
+
+import type {
+  ProgressData,
+  SetupClient,
+  WorkflowStats,
+  EvolutionEntry,
+  TaskPhase,
+  WorkflowMeta,
+  AuditReport,
+  ExpectationReport,
+} from './types';
+
+/** 单个验证步骤状态 */
+export type VerifyStepStatus = 'passed' | 'skipped' | 'failed';
+
+/** 验证整体状态 */
+export type VerifyStatus = 'passed' | 'failed' | 'not-found';
+
+/** 单个验证步骤结果 */
+export interface VerifyStepResult {
+  command: string;
+  status: VerifyStepStatus;
+  reason?: string;
+}
+
+/** 验证结果 */
+export interface VerifyResult {
+  passed: boolean;
+  status?: VerifyStatus;
+  scripts: string[];
+  steps?: VerifyStepResult[];
+  error?: string;
+}
+
+/** 子代理实时阶段上报 */
+export interface TaskPulseUpdate {
+  phase: TaskPhase;
+  updatedAt?: string;
+  note?: string;
+}
+
+/** 自动 git 提交跳过原因 */
+export type CommitSkipReason = 'no-files' | 'runtime-only' | 'no-staged-changes';
+
+/** 自动 git 提交结果 */
+export interface CommitResult {
+  status: 'committed' | 'skipped' | 'failed';
+  reason?: CommitSkipReason;
+  error?: string;
+}
+
+/** 仓储接口 */
+export interface WorkflowRepository {
+  /** 保存进度数据到 progress.md */
+  saveProgress(data: ProgressData): Promise<void>;
+  /** 加载进度数据 */
+  loadProgress(): Promise<ProgressData | null>;
+  /** 保存任务详细产出 */
+  saveTaskContext(taskId: string, content: string): Promise<void>;
+  /** 加载任务详细产出 */
+  loadTaskContext(taskId: string): Promise<string | null>;
+  /** 保存/加载滚动摘要 */
+  saveSummary(content: string): Promise<void>;
+  loadSummary(): Promise<string>;
+  /** 保存任务树定义 */
+  saveTasks(content: string): Promise<void>;
+  loadTasks(): Promise<string | null>;
+  /** 保存/加载工作流元数据 */
+  saveWorkflowMeta(meta: WorkflowMeta): Promise<void>;
+  loadWorkflowMeta(): Promise<WorkflowMeta | null>;
+  /** 保存/加载审计报告 */
+  saveAuditReport(report: AuditReport): Promise<void>;
+  loadAuditReport(): Promise<AuditReport | null>;
+  /** 保存/加载验收报告 */
+  saveExpectationReport(report: ExpectationReport): Promise<void>;
+  loadExpectationReport(): Promise<ExpectationReport | null>;
+  /** 保存/加载任务实时阶段上报 */
+  saveTaskPulse(taskId: string, update: TaskPulseUpdate): Promise<void>;
+  loadTaskPulses(): Promise<Record<string, TaskPulseUpdate>>;
+  clearTaskPulse(taskId: string): Promise<void>;
+  /** 确保 instruction file（新项目默认 AGENTS.md，兼容旧的 CLAUDE.md）包含工作流协议 */
+  ensureClaudeMd(client?: SetupClient): Promise<boolean>;
+  /** 为 snow-cli 额外生成 ROLE.md，内容与主 instruction file 协议一致 */
+  ensureRoleMd(client?: SetupClient): Promise<boolean>;
+  /** 确保.claude/settings.json包含hooks，并记录首次注入前的精确基线 */
+  ensureHooks(): Promise<boolean>;
+  ensureLocalStateIgnored(): Promise<boolean>;
+  /** 清理 context/ 目录（finish后释放上下文） */
+  clearContext(): Promise<void>;
+  /** 清理整个 .workflow/ 目录 */
+  clearAll(): Promise<void>;
+  /** 项目根目录 */
+  projectRoot(): string;
+  /** 文件锁 */
+  lock(maxWait?: number): Promise<void>;
+  unlock(): Promise<void>;
+  /** 列出当前工作区真实业务改动文件（staged/unstaged/untracked） */
+  listChangedFiles(): string[];
+  /** Git自动提交，返回真实提交结果 */
+  commit(taskId: string, title: string, summary: string, files?: string[]): CommitResult;
+  /** Git清理未提交变更（resume时调用），用stash保留而非丢弃 */
+  cleanup(): void;
+  /** 执行项目验证（build/test/lint） */
+  verify(): VerifyResult;
+  /** 清理注入的 instruction file 协议块和hooks */
+  cleanupInjections(): Promise<void>;
+  /** cleanup 后的 settings.json 是否与注入前精确基线一致 */
+  doesSettingsResidueMatchBaseline(): Promise<boolean>;
+  /** cleanup 后保留的 .gitignore 是否仍只包含 FlowPilot 管理的本地状态策略 */
+  doesGitignoreResidueMatchPolicy(): Promise<boolean>;
+  /** 保存工作流历史统计到 .flowpilot/history/ */
+  saveHistory(stats: WorkflowStats): Promise<void>;
+  /** 加载所有历史统计 */
+  loadHistory(): Promise<WorkflowStats[]>;
+  /** 加载 .flowpilot/config.json，兼容从旧的 .workflow/config.json 迁移 */
+  loadConfig(): Promise<Record<string, unknown>>;
+  /** 保存 .flowpilot/config.json */
+  saveConfig(config: Record<string, unknown>): Promise<void>;
+  /** 为任务打轻量 tag，返回错误信息或null */
+  tag(taskId: string): string | null;
+  /** 回滚到指定任务的 tag，返回错误信息或null */
+  rollback(taskId: string): string | null;
+  /** 清理所有 flowpilot/ 前缀的 tag */
+  cleanTags(): void;
+  /** 保存进化日志 */
+  saveEvolution(entry: EvolutionEntry): Promise<void>;
+  /** 加载所有进化日志 */
+  loadEvolutions(): Promise<EvolutionEntry[]>;
+}
