@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PACKAGE_SOURCE_ROOT } from './skills-package-pipeline';
 import {
   LOCAL_ONLY_SKILLS,
   PACKAGED_SKILL_ROOTS,
@@ -9,6 +10,7 @@ import {
 
 describe('upstream-skills', () => {
   it('defines all packaged skill roots that receive synced snapshots', () => {
+    expect(PACKAGE_SOURCE_ROOT).toBe('skills-src');
     expect(PACKAGED_SKILL_ROOTS).toEqual([
       'skills/codex一键安装技能/.codex-home-claude-parity/skills',
       'skills/codex一键安装技能/纯手动安装/skills',
