@@ -2,6 +2,8 @@ name: Release flow.js
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -10,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +31,7 @@ jobs:
         run: npm ci
 
       - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/v')
         run: npm run release:check-version -- "${GITHUB_REF_NAME}"
 
       - name: Run smoke tests
@@ -37,7 +40,14 @@ jobs:
       - name: Build flow.js
         run: npm run build
 
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-js
+          path: dist/flow.js
+
       - name: Upload release asset
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/flow.js
