@@ -3,6 +3,9 @@
  * @description skills 发布包源码树与渲染计划
  */
 
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 export const PACKAGE_SOURCE_ROOT = 'skills-src';
 
 export const GENERATED_FILE_HEADER = 'GENERATED FILE - DO NOT EDIT';
@@ -39,6 +42,11 @@ export interface SkillsPackageRenderPlan {
   repoRoot: string;
   sourceRoot: string;
   packages: SkillsPackagePlanEntry[];
+}
+
+export interface RequiredSkillsPackageSources {
+  present: string[];
+  missing: string[];
 }
 
 function buildCodexPlanEntry(): SkillsPackagePlanEntry {
@@ -139,5 +147,40 @@ export function buildSkillsPackageRenderPlan(repoRoot: string): SkillsPackageRen
       buildCodexPlanEntry(),
       buildCursorPlanEntry(),
     ],
+  };
+}
+
+/**
+ * 解析当前 skills 发布包源码树中的必需源文件。
+ */
+export function resolveRequiredPackageSources(repoRoot: string): RequiredSkillsPackageSources {
+  const required = [
+    'README.md',
+    'shared/templates/generated-file-header.txt',
+    'shared/skills/feature-dev/SKILL.md',
+    'packages/codex/root/install.sh',
+    'packages/codex/manual/README.md',
+    'packages/codex/tests/script-completion-messages.ps1',
+    'packages/cursor/root/install_cursor_skills.sh',
+    'packages/cursor/manual/README.md',
+    'packages/cursor/tests/wrapper-forwarding.ps1',
+    'packages/cursor/force/mcp.json',
+    'runtime/context7-local-bundled',
+  ];
+  const present: string[] = [];
+  const missing: string[] = [];
+
+  for (const relativePath of required) {
+    const sourcePath = join(repoRoot, PACKAGE_SOURCE_ROOT, relativePath);
+    if (existsSync(sourcePath)) {
+      present.push(relativePath);
+      continue;
+    }
+    missing.push(relativePath);
+  }
+
+  return {
+    present,
+    missing,
   };
 }

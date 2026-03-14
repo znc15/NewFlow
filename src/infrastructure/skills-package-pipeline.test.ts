@@ -4,6 +4,7 @@ import {
   PACKAGE_SOURCE_ROOT,
   PUBLISHED_PACKAGE_ROOTS,
   buildSkillsPackageRenderPlan,
+  resolveRequiredPackageSources,
 } from './skills-package-pipeline';
 
 describe('skills-package-pipeline', () => {
@@ -60,5 +61,24 @@ describe('skills-package-pipeline', () => {
         'skills',
       ]));
     }
+  });
+
+  it('resolves required package template files from skills-src', () => {
+    const required = resolveRequiredPackageSources(process.cwd());
+
+    expect(required.present).toEqual(expect.arrayContaining([
+      'README.md',
+      'shared/templates/generated-file-header.txt',
+      'shared/skills/feature-dev/SKILL.md',
+      'packages/codex/root/install.sh',
+      'packages/codex/manual/README.md',
+      'packages/codex/tests/script-completion-messages.ps1',
+      'packages/cursor/root/install_cursor_skills.sh',
+      'packages/cursor/manual/README.md',
+      'packages/cursor/tests/wrapper-forwarding.ps1',
+      'packages/cursor/force/mcp.json',
+      'runtime/context7-local-bundled',
+    ]));
+    expect(required.missing).toEqual([]);
   });
 });
