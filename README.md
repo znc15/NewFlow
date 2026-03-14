@@ -58,6 +58,16 @@ node flow.js init
 | [总览](docs/overview.md) | 想快速理解整体的人 | 工作流图、状态图、目录结构、Git 策略、OpenSpec 集成 |
 | [使用说明](docs/usage-guide.md) | 需要细节的人 | 命令参考、输入格式、并行开发、finish 语义、常见问题 |
 
+## Skills 包维护
+
+仓库内置的 `Codex` / `Cursor` 技能安装包现在采用“源码目录 + 生成产物”结构维护：
+
+- 可编辑源码目录：`skills-src/`
+- 生成后的发布目录：`skills/codex一键安装技能/`、`skills/cursor一键安装技能/`
+- 重新生成命令：`npm run sync:skills`
+
+如果你要修改安装脚本、README、手动安装说明或本地保留技能，请改 `skills-src/`，不要直接手改 `skills/` 下的发布包产物。
+
 ## 一图看懂
 
 ```mermaid

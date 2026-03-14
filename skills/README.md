@@ -29,6 +29,9 @@
 
 ## 当前维护约定
 
+- `skills-src/` 是技能包唯一允许手改的源码目录
+- `npm run sync:skills` 会从 `skills-src/` 与上游技能快照重新生成两个发布包
+- `skills/codex一键安装技能/` 与 `skills/cursor一键安装技能/` 视为生成产物，不直接手改
 - 包层文档和脚本输出必须明确标注 `Codex` 或 `Cursor`
 - 共享技能内容可以复用，但发布说明必须按目标产品区分
 - 如果发现 `Codex` 包里出现 Cursor 安装路径，或 `Cursor` 包里出现 Codex 安装路径，应视为兼容性文案问题并修复
