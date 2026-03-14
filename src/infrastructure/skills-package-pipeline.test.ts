@@ -1,11 +1,22 @@
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   GENERATED_FILE_HEADER,
   PACKAGE_SOURCE_ROOT,
   PUBLISHED_PACKAGE_ROOTS,
   buildSkillsPackageRenderPlan,
+  renderSkillsPackages,
   resolveRequiredPackageSources,
 } from './skills-package-pipeline';
+
+function createSkillFixture(rootDir: string, skillName: string): string {
+  const skillDir = join(rootDir, skillName);
+  mkdirSync(skillDir, { recursive: true });
+  writeFileSync(join(skillDir, 'SKILL.md'), `# ${skillName}\n\nfixture for ${skillName}\n`);
+  return skillDir;
+}
 
 describe('skills-package-pipeline', () => {
   it('uses skills-src as the single editable source root', () => {
@@ -80,5 +91,45 @@ describe('skills-package-pipeline', () => {
       'runtime/context7-local-bundled',
     ]));
     expect(required.missing).toEqual([]);
+  });
+
+  it('renders codex and cursor package trees from skills-src plus upstream skills', () => {
+    const outputRoot = mkdtempSync(join(tmpdir(), 'skills-package-render-'));
+    const upstreamRoot = mkdtempSync(join(tmpdir(), 'skills-package-upstream-'));
+
+    try {
+      const skillSources = [
+        {
+          skillName: 'brainstorming',
+          sourceDir: createSkillFixture(upstreamRoot, 'brainstorming'),
+        },
+        {
+          skillName: 'playwright',
+          sourceDir: createSkillFixture(upstreamRoot, 'playwright'),
+        },
+      ];
+
+      renderSkillsPackages(process.cwd(), outputRoot, skillSources);
+
+      expect(existsSync(join(outputRoot, 'skills/codex一键安装技能/install.sh'))).toBe(true);
+      expect(existsSync(join(outputRoot, 'skills/cursor一键安装技能/install_cursor_skills.sh'))).toBe(true);
+      expect(existsSync(join(outputRoot, 'skills/codex一键安装技能/纯手动安装/README.md'))).toBe(true);
+      expect(existsSync(join(outputRoot, 'skills/cursor一键安装技能/tests/wrapper-forwarding.ps1'))).toBe(true);
+      expect(readFileSync(join(
+        outputRoot,
+        'skills/codex一键安装技能/.codex-home-claude-parity/skills/brainstorming/SKILL.md',
+      ), 'utf8')).toContain('fixture for brainstorming');
+      expect(readFileSync(join(
+        outputRoot,
+        'skills/cursor一键安装技能/skills/playwright/SKILL.md',
+      ), 'utf8')).toContain('fixture for playwright');
+      expect(existsSync(join(
+        outputRoot,
+        'skills/cursor一键安装技能/skills/feature-dev/SKILL.md',
+      ))).toBe(true);
+    } finally {
+      rmSync(outputRoot, { recursive: true, force: true });
+      rmSync(upstreamRoot, { recursive: true, force: true });
+    }
   });
 });

@@ -4,6 +4,7 @@
  */
 
 import { existsSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const PACKAGE_SOURCE_ROOT = 'skills-src';
@@ -47,6 +48,11 @@ export interface SkillsPackageRenderPlan {
 export interface RequiredSkillsPackageSources {
   present: string[];
   missing: string[];
+}
+
+export interface SkillsPackageSkillSource {
+  skillName: string;
+  sourceDir: string;
 }
 
 function buildCodexPlanEntry(): SkillsPackagePlanEntry {
@@ -136,6 +142,20 @@ function buildCursorPlanEntry(): SkillsPackagePlanEntry {
   };
 }
 
+function copyDirectoryContents(sourceDir: string, targetDir: string): void {
+  mkdirSync(targetDir, { recursive: true });
+  for (const entry of readdirSync(sourceDir)) {
+    cpSync(join(sourceDir, entry), join(targetDir, entry), { recursive: true });
+  }
+}
+
+function copySkillDirectory(sourceDir: string, targetRoots: string[], skillName: string): void {
+  for (const targetRoot of targetRoots) {
+    mkdirSync(targetRoot, { recursive: true });
+    cpSync(sourceDir, join(targetRoot, skillName), { recursive: true });
+  }
+}
+
 /**
  * 构建 skills 发布包渲染计划。
  */
@@ -183,4 +203,61 @@ export function resolveRequiredPackageSources(repoRoot: string): RequiredSkillsP
     present,
     missing,
   };
+}
+
+/**
+ * 将 skills-src 与技能快照渲染为发布包目录。
+ */
+export function renderSkillsPackages(
+  repoRoot: string,
+  outputRoot: string,
+  skillSources: SkillsPackageSkillSource[],
+): void {
+  const plan = buildSkillsPackageRenderPlan(repoRoot);
+  const sourceRoot = join(repoRoot, plan.sourceRoot);
+
+  for (const entry of plan.packages) {
+    for (const group of entry.fileGroups) {
+      if (group.kind === 'skills' || group.kind === 'runtime') {
+        continue;
+      }
+      copyDirectoryContents(
+        join(sourceRoot, group.sourceRoot),
+        join(outputRoot, group.outputRoot),
+      );
+    }
+
+    if (entry.packageId === 'codex') {
+      cpSync(
+        join(sourceRoot, 'runtime/context7-local-bundled'),
+        join(outputRoot, 'skills/codex一键安装技能/纯手动安装/context7-local-bundled'),
+        { recursive: true },
+      );
+    }
+
+    if (entry.packageId === 'cursor') {
+      cpSync(
+        join(sourceRoot, 'runtime/context7-local-bundled'),
+        join(outputRoot, 'skills/cursor一键安装技能/-Force/context7-local'),
+        { recursive: true },
+      );
+    }
+
+    const sharedSkillsRoot = join(sourceRoot, 'shared/skills');
+    for (const skillName of readdirSync(sharedSkillsRoot)) {
+      copySkillDirectory(
+        join(sharedSkillsRoot, skillName),
+        entry.skillsRoots.map(targetRoot => join(outputRoot, targetRoot)),
+        skillName,
+      );
+    }
+
+    for (const skillSource of skillSources) {
+      copySkillDirectory(
+        skillSource.sourceDir,
+        entry.skillsRoots.map(targetRoot => join(outputRoot, targetRoot)),
+        skillSource.skillName,
+      );
+    }
+  }
 }
