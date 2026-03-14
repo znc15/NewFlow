@@ -6,3 +6,4 @@ node_modules/
 .claude/worktrees/
 .ace-tool/
 docs/plans
+dist/
