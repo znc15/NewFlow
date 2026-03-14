@@ -1,7 +1,5 @@
 # NewFlow
 
-[English](README.en.md)
-
 **一个文件，把需求变成任务、代码、验证和最终提交。**
 
 **基于 FlowPilot 开发。**
@@ -277,4 +275,3 @@ NewFlow 已将 OpenSpec 作为一等输入源：
 
 - 本项目要求在支持 Agent Teams / 多代理执行的环境里使用。
 - 运行时只依赖 Node.js 内置模块；构建与测试使用开发依赖。
-- 如果你想了解更完整的背景和英文说明，可以看 [README.en.md](README.en.md)。

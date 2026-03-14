@@ -1,7 +1,5 @@
 # FlowPilot - 使用说明
 
-[English](usage-guide.en.md)
-
 ## 这是什么
 
 一个单文件工具，让 Claude Code / Codex / Cursor / snow-cli 等客户端进入全自动开发模式。
