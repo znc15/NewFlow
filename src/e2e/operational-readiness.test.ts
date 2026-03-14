@@ -14,6 +14,7 @@ import { existsSync } from 'node:fs';
 const DIST_FLOW_CLI = resolve(dirname(fileURLToPath(import.meta.url)), '../../dist/flow.js');
 const ROOT_FLOW_CLI_CANDIDATE = resolve(dirname(fileURLToPath(import.meta.url)), '../../../flow.js');
 const SOURCE_FLOW_CLI = resolve(dirname(fileURLToPath(import.meta.url)), '../main.ts');
+const TSX_LOADER = resolve(dirname(fileURLToPath(import.meta.url)), '../../node_modules/tsx/dist/loader.mjs');
 const TASK_MARKDOWN = `# Clean Repo Smoke\n\n1. [backend] add tracked file\n  create one tracked file in a clean repo\n`;
 const SUBMODULE_TASK_MARKDOWN = `# Submodule Smoke\n\n1. [backend] advance submodule gitlink\n  advance a submodule commit and checkpoint the gitlink path\n`;
 
@@ -26,6 +27,7 @@ function resolveFlowInvocation(paths: {
   distCli: string;
   rootCli: string;
   sourceCli: string;
+  tsxLoader: string;
 }): FlowInvocation {
   if (existsSync(paths.rootCli)) {
     return { command: 'node', args: [paths.rootCli] };
@@ -33,13 +35,14 @@ function resolveFlowInvocation(paths: {
   if (existsSync(paths.distCli)) {
     return { command: 'node', args: [paths.distCli] };
   }
-  return { command: 'node', args: ['--import', 'tsx', paths.sourceCli] };
+  return { command: 'node', args: ['--import', paths.tsxLoader, paths.sourceCli] };
 }
 
 const ROOT_FLOW_CLI = resolveFlowInvocation({
   distCli: DIST_FLOW_CLI,
   rootCli: ROOT_FLOW_CLI_CANDIDATE,
   sourceCli: SOURCE_FLOW_CLI,
+  tsxLoader: TSX_LOADER,
 });
 
 function runGit(repoDir: string, args: string[], encoding: 'utf-8' | 'buffer' = 'utf-8'): string {
@@ -78,9 +81,10 @@ describe('operational readiness smoke tests', () => {
       distCli: '/missing/dist/flow.js',
       rootCli: '/missing/flow.js',
       sourceCli: '/repo/src/main.ts',
+      tsxLoader: '/repo/node_modules/tsx/dist/loader.mjs',
     })).toEqual({
       command: 'node',
-      args: ['--import', 'tsx', '/repo/src/main.ts'],
+      args: ['--import', '/repo/node_modules/tsx/dist/loader.mjs', '/repo/src/main.ts'],
     });
   });
 
