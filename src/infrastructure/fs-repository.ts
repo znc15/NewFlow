@@ -18,6 +18,11 @@ import type {
   ExpectationReport,
 } from '../domain/types';
 import type { WorkflowRepository, VerifyResult, CommitResult, TaskPulseUpdate } from '../domain/repository';
+import {
+  BLOCKED_NATIVE_TOOLS,
+  PRETOOL_GUARD_COMMAND,
+  PRETOOL_GUARD_MATCHER,
+} from '../domain/claude-hook-policy';
 import { autoCommit, gitCleanup, tagTask, rollbackToTask, cleanTags as gitCleanTags, listChangedFiles as gitListChangedFiles } from './git';
 import { runVerify } from './verify';
 import { getProtocolTemplate, PROTOCOL_TEMPLATE } from './protocol-template';
@@ -50,7 +55,6 @@ const LEGACY_INSTRUCTION_FILE = 'CLAUDE.md';
 const ROLE_INSTRUCTION_FILE = 'ROLE.md';
 const FLOWPILOT_MARKER_START = '<!-- flowpilot:start -->';
 const FLOWPILOT_MARKER_END = '<!-- flowpilot:end -->';
-const BLOCKED_NATIVE_TOOLS = ['TaskCreate', 'TaskUpdate', 'TaskList', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Explore'];
 const BLOCKED_NATIVE_TOOL_SET = new Set(BLOCKED_NATIVE_TOOLS);
 const FLOWPILOT_HOOK_SIGNATURES = ['flowpilot', 'flow.js'];
 
@@ -136,10 +140,10 @@ async function loadProtocolTemplate(basePath: string, client: SetupClient = 'oth
   return client === 'other' ? PROTOCOL_TEMPLATE : getProtocolTemplate(client);
 }
 
-function hookEntry(matcher: string): HookEntry {
+function hookEntry(): HookEntry {
   return {
-    matcher,
-    hooks: [{ type: 'prompt', prompt: 'BLOCK this tool call. FlowPilot requires using node flow.js commands instead of native task tools.' }],
+    matcher: PRETOOL_GUARD_MATCHER,
+    hooks: [{ type: 'command', command: PRETOOL_GUARD_COMMAND }],
   };
 }
 
@@ -209,14 +213,18 @@ function cloneStoredHookEntry<T extends StoredHookEntry>(entry: T): T {
 }
 
 function dedupeHookEntries(entries: StoredHookEntry[]): StoredHookEntry[] {
-  const seen = new Set<string>();
-  const result: StoredHookEntry[] = [];
+  const bySerialized = new Map<string, StoredHookEntry>();
   for (const entry of entries) {
-    if (seen.has(entry.matcher)) continue;
-    seen.add(entry.matcher);
-    result.push(cloneStoredHookEntry(entry));
+    const cloned = cloneStoredHookEntry(entry);
+    bySerialized.set(serializeHookEntry(cloned), cloned);
   }
-  return result;
+  return [...bySerialized.values()].sort((a, b) => {
+    const matcherCompare = a.matcher.localeCompare(b.matcher);
+    if (matcherCompare !== 0) {
+      return matcherCompare;
+    }
+    return serializeHookEntry(a).localeCompare(serializeHookEntry(b));
+  });
 }
 
 function containsFlowPilotHookSignature(value: unknown): boolean {
@@ -242,7 +250,7 @@ function serializeHookEntry(entry: { matcher: string; hooks: unknown[] }): strin
 }
 
 function isCanonicalFlowPilotHookEntry(entry: StoredHookEntry): boolean {
-  return serializeHookEntry(entry) === serializeHookEntry(hookEntry(entry.matcher));
+  return serializeHookEntry(entry) === serializeHookEntry(hookEntry());
 }
 
 function normalizeCleanupContent(content: string): string {
@@ -785,27 +793,26 @@ export class FsWorkflowRepository implements WorkflowRepository {
       created = true;
     }
 
-    const requiredPreToolUse = BLOCKED_NATIVE_TOOLS.map(hookEntry);
+    const requiredPreToolUse = [hookEntry()];
     const currentHooks = settings.hooks;
     const hooks = currentHooks && typeof currentHooks === 'object' && !Array.isArray(currentHooks)
       ? currentHooks as Record<string, unknown>
       : {};
     const currentPreToolUse = hooks.PreToolUse;
+    const hadMalformedPreToolUse = Array.isArray(currentPreToolUse)
+      && currentPreToolUse.some(entry => !isStoredHookEntry(entry) || !isValidStoredHookEntry(entry));
     const existingPreToolUse = Array.isArray(currentPreToolUse)
       ? currentPreToolUse.filter(isStoredHookEntry).map(cloneStoredHookEntry)
       : [];
-    const replacedMatchers = new Set(existingPreToolUse
-      .filter(entry => BLOCKED_NATIVE_TOOL_SET.has(entry.matcher))
-      .filter(entry => !isValidStoredHookEntry(entry)
-        || (isLegacyFlowPilotHookEntry(entry) && !isCanonicalFlowPilotHookEntry(entry)))
-      .map(entry => entry.matcher));
     const preservedPreToolUse = existingPreToolUse
-      .filter(entry => !replacedMatchers.has(entry.matcher));
-    const existingMatchers = new Set(preservedPreToolUse
-      .map(entry => entry.matcher)
-      .filter((matcher): matcher is string => Boolean(matcher)));
-    const missingPreToolUse = requiredPreToolUse.filter(entry => !existingMatchers.has(entry.matcher));
-    if (!created && !missingPreToolUse.length) return false;
+      .filter(entry => !isLegacyFlowPilotHookEntry(entry));
+    const hasManagedPreToolUse = preservedPreToolUse.some(isCanonicalFlowPilotHookEntry);
+    const missingPreToolUse = hasManagedPreToolUse ? [] : requiredPreToolUse;
+    const shouldRewrite = created
+      || hadMalformedPreToolUse
+      || missingPreToolUse.length > 0
+      || preservedPreToolUse.length !== existingPreToolUse.length;
+    if (!shouldRewrite) return false;
 
     const nextSettings = {
       ...settings,

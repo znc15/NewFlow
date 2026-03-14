@@ -70,9 +70,19 @@ export interface TaskPulseState {
 }
 
 /** FlowPilot 写入 settings.json 的 hook 结构 */
+export interface HookHandler {
+  type: string;
+  prompt?: string;
+  command?: string;
+  url?: string;
+  statusMessage?: string;
+  [key: string]: unknown;
+}
+
+/** FlowPilot 写入 settings.json 的 hook matcher 结构 */
 export interface HookEntry {
   matcher: string;
-  hooks: Array<{ type: string; prompt: string }>;
+  hooks: HookHandler[];
 }
 
 /** 文件系统精确快照：记录是否存在以及原始文本 */
@@ -238,7 +248,23 @@ function isHookEntry(value: unknown): value is HookEntry {
     return false;
   }
 
-  return value.hooks.every(hook => isRecord(hook) && typeof hook.type === 'string' && typeof hook.prompt === 'string');
+  return value.hooks.every((hook) => {
+    if (!isRecord(hook) || typeof hook.type !== 'string') {
+      return false;
+    }
+
+    switch (hook.type) {
+      case 'prompt':
+      case 'agent':
+        return typeof hook.prompt === 'string';
+      case 'command':
+        return typeof hook.command === 'string';
+      case 'http':
+        return typeof hook.url === 'string';
+      default:
+        return false;
+    }
+  });
 }
 
 function isExactFileSnapshot(value: unknown): value is ExactFileSnapshot {
@@ -325,14 +351,21 @@ function normalizeOwnedFilesState(state: OwnedFilesState): OwnedFilesState {
 }
 
 function dedupeHookEntries(entries: HookEntry[]): HookEntry[] {
-  const byMatcher = new Map<string, HookEntry>();
+  const bySerialized = new Map<string, HookEntry>();
   for (const entry of entries) {
-    byMatcher.set(entry.matcher, {
+    const normalizedEntry: HookEntry = {
       matcher: entry.matcher,
-      hooks: entry.hooks.map(hook => ({ type: hook.type, prompt: hook.prompt })),
-    });
+      hooks: entry.hooks.map(hook => ({ ...hook })),
+    };
+    bySerialized.set(JSON.stringify(normalizedEntry), normalizedEntry);
   }
-  return [...byMatcher.values()].sort((a, b) => a.matcher.localeCompare(b.matcher));
+  return [...bySerialized.values()].sort((a, b) => {
+    const matcherCompare = a.matcher.localeCompare(b.matcher);
+    if (matcherCompare !== 0) {
+      return matcherCompare;
+    }
+    return JSON.stringify(a).localeCompare(JSON.stringify(b));
+  });
 }
 
 function normalizeSetupInjectionManifest(manifest: SetupInjectionManifest): SetupInjectionManifest {

@@ -763,7 +763,7 @@ describe('WorkflowService 集成测试', () => {
     expect(msg).toContain('.claude/settings.json 已更新');
     expect(await readFile(join(dir, 'CLAUDE.md'), 'utf-8')).toContain('flowpilot:start');
     await expect(readFile(join(dir, 'AGENTS.md'), 'utf-8')).rejects.toThrow();
-    expect(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8')).toContain('TaskCreate');
+    expect(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8')).toContain('pretool-guard');
   });
 
   it('setup 遇到 reconciling 工作流时提示先 resume 处理待接管任务', async () => {

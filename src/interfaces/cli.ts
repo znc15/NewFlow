@@ -10,6 +10,7 @@ import { formatStatus, formatTask, formatBatch } from './formatter';
 import { promptSetupClient, readStdinIfPiped } from './stdin';
 import { enableVerbose } from '../infrastructure/logger';
 import { checkForUpdate, getCurrentVersion } from '../infrastructure/updater';
+import { evaluatePreToolHookInput } from '../domain/claude-hook-policy';
 import type { SetupClient } from '../domain/types';
 
 interface CliDeps {
@@ -27,6 +28,10 @@ interface ParsedPayload {
 
 const UPDATE_SKIP_COMMANDS = new Set(['version', 'help', '-h', '--help', 'resume', 'status', 'recall']);
 const VALID_TASK_TYPES = new Set(['frontend', 'backend', 'general']);
+
+function isHookCommand(args: string[]): boolean {
+  return args[0] === 'hook';
+}
 
 function looksLikePathToken(token: string): boolean {
   return /^[./~]/.test(token) || token.includes('/') || token.includes('\\') || token.includes('.');
@@ -99,7 +104,8 @@ export class CLI {
     }
     // 跳过更新检查的命令
     const cmd = args[0] || '';
-    const noUpdateCheck = UPDATE_SKIP_COMMANDS.has(cmd);
+    const rawHookOutput = isHookCommand(args);
+    const noUpdateCheck = rawHookOutput || UPDATE_SKIP_COMMANDS.has(cmd);
     const executablePath = (this.deps.getExecutablePath ?? (() => process.argv[1]))();
 
     try {
@@ -112,7 +118,14 @@ export class CLI {
           output = output + ' ' + updateMsg;
         }
       }
-      
+
+      if (rawHookOutput) {
+        if (output.length > 0) {
+          process.stdout.write(output);
+        }
+        return;
+      }
+
       process.stdout.write(output + '\n');
     } catch (e) {
       process.stderr.write('错误: ' + (e instanceof Error ? e.message : e) + '\n');
@@ -266,6 +279,14 @@ export class CLI {
         const query = rest.join(' ');
         if (!query) throw new Error('需要查询关键词');
         return await s.recall(query);
+      }
+
+      case 'hook': {
+        const subcommand = rest[0] || '';
+        if (subcommand !== 'pretool-guard') return '';
+        const input = await (this.deps.readStdinIfPiped ?? readStdinIfPiped)();
+        const decision = evaluatePreToolHookInput(input);
+        return decision ? JSON.stringify(decision) : '';
       }
 
       case 'add': {

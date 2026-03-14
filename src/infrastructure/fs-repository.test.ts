@@ -399,9 +399,9 @@ describe('FsWorkflowRepository', () => {
     await repo.ensureHooks();
     const settingsPath = join(dir, '.claude', 'settings.json');
     const settings = JSON.parse(await readFile(settingsPath, 'utf-8'));
-    settings.hooks.PreToolUse = settings.hooks.PreToolUse.map((entry: { matcher: string; hooks: Array<{ type: string; prompt: string }> }) => (
-      entry.matcher === 'TaskCreate'
-        ? { matcher: 'TaskCreate', hooks: [{ type: 'prompt', prompt: 'user customized create hook' }] }
+    settings.hooks.PreToolUse = settings.hooks.PreToolUse.map((entry: { matcher: string; hooks: Array<Record<string, unknown>> }) => (
+      entry.matcher === '*'
+        ? { matcher: '*', hooks: [{ type: 'command', command: 'echo user customized wildcard hook', statusMessage: 'keep me' }] }
         : entry
     ));
     await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
@@ -411,7 +411,7 @@ describe('FsWorkflowRepository', () => {
     expect(JSON.parse(await readFile(settingsPath, 'utf-8'))).toEqual({
       hooks: {
         PreToolUse: [
-          { matcher: 'TaskCreate', hooks: [{ type: 'prompt', prompt: 'user customized create hook' }] },
+          { matcher: '*', hooks: [{ type: 'command', command: 'echo user customized wildcard hook', statusMessage: 'keep me' }] },
         ],
       },
     });
@@ -515,10 +515,17 @@ describe('FsWorkflowRepository', () => {
     expect(wrote).toBe(true);
     expect(existsSync(join(dir, '.claude', 'settings.json'))).toBe(true);
     const settings = JSON.parse(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8'));
-    expect(settings.hooks.PreToolUse).toHaveLength(9);
-    expect(settings.hooks.PreToolUse[0].matcher).toBe('TaskCreate');
-    expect(settings.hooks.PreToolUse.map((entry: { matcher: string }) => entry.matcher)).toContain('Read');
-    expect(settings.hooks.PreToolUse.map((entry: { matcher: string }) => entry.matcher)).toContain('Edit');
+    expect(settings.hooks.PreToolUse).toEqual([
+      {
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: 'node "$CLAUDE_PROJECT_DIR"/flow.js hook pretool-guard',
+          },
+        ],
+      },
+    ]);
   });
 
   it('ensureHooks 幂等追加 hooks', async () => {
@@ -526,7 +533,8 @@ describe('FsWorkflowRepository', () => {
     const wrote = await repo.ensureHooks();
     expect(wrote).toBe(false);
     const settings = JSON.parse(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8'));
-    expect(settings.hooks.PreToolUse).toHaveLength(9);
+    expect(settings.hooks.PreToolUse).toHaveLength(1);
+    expect(settings.hooks.PreToolUse[0].matcher).toBe('*');
   });
 
   it('ensureHooks 保留已有配置并仅补齐缺失 hooks', async () => {
@@ -545,10 +553,13 @@ describe('FsWorkflowRepository', () => {
     expect(wrote).toBe(true);
 
     const settings = JSON.parse(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8'));
-    const preToolUse = settings.hooks.PreToolUse as Array<{ matcher: string }>;
+    const preToolUse = settings.hooks.PreToolUse as Array<{ matcher: string; hooks: Array<Record<string, unknown>> }>;
     expect(settings.model).toBe('opus');
-    expect(preToolUse.map(entry => entry.matcher)).toEqual(['TaskCreate', 'OtherTool', 'TaskUpdate', 'TaskList', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Explore']);
-    expect(preToolUse.filter(entry => entry.matcher === 'TaskCreate')).toHaveLength(1);
+    expect(preToolUse).toContainEqual({ matcher: 'OtherTool', hooks: [{ type: 'prompt', prompt: 'keep me' }] });
+    expect(preToolUse).toContainEqual({
+      matcher: '*',
+      hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR"/flow.js hook pretool-guard' }],
+    });
   });
 
   it('ensureHooks 替换旧的 FlowPilot 任务 hook，并保留无关 command hook', async () => {
@@ -576,14 +587,14 @@ describe('FsWorkflowRepository', () => {
       matcher: string;
       hooks: Array<Record<string, unknown>>;
     }>;
-    const taskCreate = preToolUse.find(entry => entry.matcher === 'TaskCreate');
+    const managedHook = preToolUse.find(entry => entry.matcher === '*');
     const otherTool = preToolUse.find(entry => entry.matcher === 'OtherTool');
 
-    expect(taskCreate).toEqual({
-      matcher: 'TaskCreate',
+    expect(managedHook).toEqual({
+      matcher: '*',
       hooks: [{
-        type: 'prompt',
-        prompt: 'BLOCK this tool call. FlowPilot requires using node flow.js commands instead of native task tools.',
+        type: 'command',
+        command: 'node "$CLAUDE_PROJECT_DIR"/flow.js hook pretool-guard',
       }],
     });
     expect(otherTool).toEqual({
@@ -610,7 +621,7 @@ describe('FsWorkflowRepository', () => {
     const settings = JSON.parse(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8'));
     const preToolUse = settings.hooks.PreToolUse as Array<{ matcher: string }>;
     expect(settings.model).toBe('opus');
-    expect(preToolUse.map(entry => entry.matcher)).toEqual(['OtherTool', 'TaskCreate', 'TaskUpdate', 'TaskList', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Explore']);
+    expect(preToolUse.map(entry => entry.matcher).sort()).toEqual(['*', 'OtherTool']);
   });
 
   it('ensureHooks records the earliest exact settings baseline and cleanup compares against it', async () => {
