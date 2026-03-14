@@ -221,8 +221,8 @@ describe('CLI hook command', () => {
     const cli = new CLI({} as any, {
       readStdinIfPiped: async () => JSON.stringify({
         hook_event_name: 'PreToolUse',
-        tool_name: 'Bash',
-        tool_input: { command: 'pwd' },
+        tool_name: 'Read',
+        tool_input: { file_path: 'README.md' },
       }),
       checkForUpdate: vi.fn(() => '有新版本'),
     });

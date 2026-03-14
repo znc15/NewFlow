@@ -20,6 +20,7 @@ import type {
 import type { WorkflowRepository, VerifyResult, CommitResult, TaskPulseUpdate } from '../domain/repository';
 import {
   BLOCKED_NATIVE_TOOLS,
+  LEGACY_FLOWPILOT_HOOK_MATCHERS,
   PRETOOL_GUARD_COMMAND,
   PRETOOL_GUARD_MATCHER,
 } from '../domain/claude-hook-policy';
@@ -55,7 +56,7 @@ const LEGACY_INSTRUCTION_FILE = 'CLAUDE.md';
 const ROLE_INSTRUCTION_FILE = 'ROLE.md';
 const FLOWPILOT_MARKER_START = '<!-- flowpilot:start -->';
 const FLOWPILOT_MARKER_END = '<!-- flowpilot:end -->';
-const BLOCKED_NATIVE_TOOL_SET = new Set(BLOCKED_NATIVE_TOOLS);
+const LEGACY_FLOWPILOT_HOOK_MATCHER_SET = new Set(LEGACY_FLOWPILOT_HOOK_MATCHERS);
 const FLOWPILOT_HOOK_SIGNATURES = ['flowpilot', 'flow.js'];
 
 const VALID_WORKFLOW_STATUS = new Set(['idle', 'running', 'reconciling', 'finishing', 'completed', 'aborted']);
@@ -233,7 +234,7 @@ function containsFlowPilotHookSignature(value: unknown): boolean {
 }
 
 function isLegacyFlowPilotHookEntry(entry: StoredHookEntry): boolean {
-  return BLOCKED_NATIVE_TOOL_SET.has(entry.matcher)
+  return LEGACY_FLOWPILOT_HOOK_MATCHER_SET.has(entry.matcher)
     && entry.hooks.some(hook => isRecord(hook)
       && (
         containsFlowPilotHookSignature(hook.prompt)

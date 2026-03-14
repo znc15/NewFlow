@@ -131,7 +131,7 @@ describe('FsWorkflowRepository', () => {
     expect(content).toContain('### Terminology / 术语约定');
     expect(content).toContain('### Dispatch Reference（子代理派发规范）');
     expect(content).toContain('**工具名称**: `Agent`');
-    expect(content).toContain('Main agent can ONLY use Bash, `Agent`, and Skill');
+    expect(content).toContain('Main agent MUST use `node flow.js` for task state changes');
     expect(content).toContain('### OpenSpec Adaptive Gate');
     expect(content).toContain('[USE_OPENSPEC]');
     expect(content).toContain('[NO_OPENSPEC]');
@@ -601,6 +601,26 @@ describe('FsWorkflowRepository', () => {
       matcher: 'OtherTool',
       hooks: [{ type: 'command', command: 'echo keep me', statusMessage: 'keep me' }],
     });
+  });
+
+  it('ensureHooks 移除旧的 FlowPilot 非任务 blocker', async () => {
+    await mkdir(join(dir, '.claude'), { recursive: true });
+    await writeFile(join(dir, '.claude', 'settings.json'), JSON.stringify({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'Read',
+            hooks: [{ type: 'prompt', prompt: 'BLOCK this tool call. FlowPilot requires using node flow.js commands instead of native task tools.' }],
+          },
+        ],
+      },
+    }, null, 2) + '\n', 'utf-8');
+
+    await expect(repo.ensureHooks()).resolves.toBe(true);
+
+    const settings = JSON.parse(await readFile(join(dir, '.claude', 'settings.json'), 'utf-8'));
+    const preToolUse = settings.hooks.PreToolUse as Array<{ matcher: string }>;
+    expect(preToolUse.map(entry => entry.matcher)).toEqual(['*']);
   });
 
   it('ensureHooks 忽略畸形的 PreToolUse 项并继续补齐缺失 hooks', async () => {

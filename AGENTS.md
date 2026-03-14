@@ -15,7 +15,7 @@
 - progress.md 是记忆本体，compact/重启后读它恢复
 - 协议直接嵌入目标项目 AGENTS.md（<!-- flowpilot:start/end --> 标记）
 - Hooks 自动注入目标项目 .Codex/settings.json（拦截 TaskCreate/TaskUpdate/TaskList）
-- 主Agent只能用 Bash、Agent、Skill 工具，禁止直接读源码/写代码
+- 主Agent必须用 flow CLI 维护任务状态；Read/Write/Edit/Glob/Grep/Explore 可直接使用，但优先通过 Agent 做并行派发
 - 本工具必须在 Agent Teams 开启的环境下使用
 
 ## 额外命令
