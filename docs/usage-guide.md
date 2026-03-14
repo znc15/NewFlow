@@ -3,16 +3,17 @@
 ## 这是什么
 
 一个单文件工具，让 Claude Code / Codex / Cursor / snow-cli 等客户端进入全自动开发模式。
-复制一个文件到项目里，一句开发需求，它就会自动拆解需求、分配任务、写代码、提交 git、跑测试，直到全部完成。
+下载一个 `flow.js` 到项目里，一句开发需求，它就会自动拆解需求、分配任务、写代码、提交 git、跑测试，直到全部完成。
 
 ## 快速开始
 
 ```bash
-# 1. 复制 flow.js 到你的项目
-cp /path/to/workflow-engine/dist/flow.js  你的项目目录/
+cd 你的项目目录
+# 1. 从 GitHub Release 下载 flow.js
+curl -L https://github.com/znc15/NewFlow/releases/latest/download/flow.js -o flow.js
+chmod +x flow.js
 
 # 2. 初始化（会显示客户端选项）
-cd 你的项目目录
 node flow.js init
 
 # 3. 打开客户端，直接描述需求
@@ -53,11 +54,15 @@ claude --dangerously-skip-permissions --continue
 
 ## 详细初始化步骤
 
-### 第一步：复制 flow.js 到你的项目
+### 第一步：下载 flow.js 到你的项目
 
 ```bash
-cp /path/to/workflow-engine/dist/flow.js  你的项目目录/
+cd 你的项目目录
+curl -L https://github.com/znc15/NewFlow/releases/latest/download/flow.js -o flow.js
+chmod +x flow.js
 ```
+
+如果你正在开发 NewFlow 本体，而不是普通使用者，才需要本地 `npm install && npm run build`。
 
 ### 第二步：初始化
 
@@ -707,7 +712,7 @@ Windows 直接运行对应目录里的 `.bat` / `.ps1` 脚本即可。
 
 如果你之后不想继续在某个项目里使用 FlowPilot，只需要删除它带入或运行时生成的文件：
 
-- `flow.js`（你复制进项目的单文件工具）
+- `flow.js`（你下载到项目里的单文件工具）
 - instruction file：
   - `Claude Code` 模式通常是 `CLAUDE.md`
   - `Codex / Cursor / Other` 模式通常是 `AGENTS.md`
