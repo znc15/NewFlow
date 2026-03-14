@@ -125,6 +125,7 @@ describe('FsWorkflowRepository', () => {
     const wrote = await repo.ensureClaudeMd();
     expect(wrote).toBe(true);
     const content = await readFile(join(dir, 'AGENTS.md'), 'utf-8');
+    expect(content.startsWith('<!-- flowpilot:start -->')).toBe(true);
     expect(content).toContain('flowpilot:start');
     expect(content).toContain('node flow.js analyze --tasks');
     expect(content).toContain('### Terminology / 术语约定');
@@ -143,6 +144,7 @@ describe('FsWorkflowRepository', () => {
     const wrote = await repo.ensureClaudeMd('claude');
     expect(wrote).toBe(true);
     const content = await readFile(join(dir, 'CLAUDE.md'), 'utf-8');
+    expect(content.startsWith('<!-- flowpilot:start -->')).toBe(true);
     expect(content).toContain('flowpilot:start');
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(false);
   });
@@ -159,7 +161,10 @@ describe('FsWorkflowRepository', () => {
     const wrote = await repo.ensureClaudeMd();
 
     expect(wrote).toBe(true);
-    expect(await readFile(join(dir, 'CLAUDE.md'), 'utf-8')).toContain('flowpilot:start');
+    const content = await readFile(join(dir, 'CLAUDE.md'), 'utf-8');
+    expect(content.startsWith('<!-- flowpilot:start -->')).toBe(true);
+    expect(content).toContain('flowpilot:start');
+    expect(content).toContain('# Custom');
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(false);
   });
 
@@ -169,8 +174,24 @@ describe('FsWorkflowRepository', () => {
     const wrote = await repo.ensureClaudeMd('claude');
 
     expect(wrote).toBe(true);
-    expect(await readFile(join(dir, 'AGENTS.md'), 'utf-8')).toContain('flowpilot:start');
+    const content = await readFile(join(dir, 'AGENTS.md'), 'utf-8');
+    expect(content.startsWith('<!-- flowpilot:start -->')).toBe(true);
+    expect(content).toContain('flowpilot:start');
+    expect(content).toContain('# Custom');
     expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(false);
+  });
+
+  it('ensureClaudeMd 会把已有的底部协议块搬到顶部', async () => {
+    const protocol = '<!-- flowpilot:start -->\nlegacy block\n<!-- flowpilot:end -->\n';
+    await writeFile(join(dir, 'AGENTS.md'), `# Custom\n\nKeep me.\n\n${protocol}`, 'utf-8');
+
+    const wrote = await repo.ensureClaudeMd();
+
+    expect(wrote).toBe(true);
+    const content = await readFile(join(dir, 'AGENTS.md'), 'utf-8');
+    expect(content.startsWith(protocol)).toBe(true);
+    expect(content).toContain('# Custom\n\nKeep me.\n');
+    expect(content.indexOf('<!-- flowpilot:start -->')).toBeLessThan(content.indexOf('# Custom'));
   });
 
   it('ensureRoleMd 首次创建 ROLE.md', async () => {

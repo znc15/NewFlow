@@ -182,19 +182,45 @@ function normalizeCleanupContent(content: string): string {
   return content.replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
+function extractFlowPilotBlock(content: string): { block: string; remainder: string } | null {
+  const startIdx = content.indexOf(FLOWPILOT_MARKER_START);
+  const endIdx = content.indexOf(FLOWPILOT_MARKER_END);
+  if (startIdx < 0 || endIdx < 0 || endIdx < startIdx) {
+    return null;
+  }
+
+  const blockEnd = endIdx + FLOWPILOT_MARKER_END.length;
+  return {
+    block: content.slice(startIdx, blockEnd).trim(),
+    remainder: `${content.slice(0, startIdx)}${content.slice(blockEnd)}`,
+  };
+}
+
+function normalizeInstructionContent(block: string, remainder: string): string {
+  const normalizedRemainder = normalizeCleanupContent(remainder);
+  if (!normalizedRemainder) {
+    return `${block.trim()}\n`;
+  }
+  return `${block.trim()}\n\n${normalizedRemainder}`;
+}
+
 function cleanupClaudeContent(
   content: string,
   injectionState?: SetupInjectionManifest['claudeMd'],
 ): CleanupEffect {
-  const startIdx = content.indexOf(FLOWPILOT_MARKER_START);
-  const endIdx = content.indexOf(FLOWPILOT_MARKER_END);
-  if (startIdx < 0 || endIdx < 0 || endIdx < startIdx) {
+  const extracted = extractFlowPilotBlock(content);
+  if (!extracted) {
     return { effect: 'noop' };
   }
 
-  let next = `${content.slice(0, startIdx)}${content.slice(endIdx + FLOWPILOT_MARKER_END.length)}`;
-  if (injectionState?.created && injectionState.scaffold && next.startsWith(injectionState.scaffold)) {
-    next = next.slice(injectionState.scaffold.length);
+  let next = extracted.remainder;
+  const scaffold = injectionState?.scaffold;
+  if (injectionState?.created && scaffold) {
+    const normalizedScaffold = normalizeCleanupContent(scaffold);
+    const normalizedNext = normalizeCleanupContent(next);
+    if (normalizedNext.startsWith(normalizedScaffold)) {
+      next = normalizedNext.slice(normalizedScaffold.length);
+    }
   }
 
   const normalized = normalizeCleanupContent(next);
@@ -227,18 +253,26 @@ async function resolveInstructionFile(basePath: string, client: SetupClient = 'o
 
 async function ensureInstructionDocument(basePath: string, relPath: string, client: SetupClient = 'other'): Promise<boolean> {
   const path = join(basePath, relPath);
-  const marker = '<!-- flowpilot:start -->';
-  const block = (await loadProtocolTemplate(basePath, client)).trim();
+  const templateBlock = (await loadProtocolTemplate(basePath, client)).trim();
+  let block = templateBlock;
   let created = false;
   let scaffold = '';
   try {
     const content = await readFile(path, 'utf-8');
-    if (content.includes(marker)) return false;
-    await writeFile(path, content.trimEnd() + '\n\n' + block + '\n', 'utf-8');
+    const extracted = extractFlowPilotBlock(content);
+    if (extracted) {
+      block = extracted.block;
+      const normalized = normalizeInstructionContent(extracted.block, extracted.remainder);
+      if (normalized === content) return false;
+      await writeFile(path, normalized, 'utf-8');
+    } else {
+      const normalized = normalizeInstructionContent(templateBlock, content);
+      await writeFile(path, normalized, 'utf-8');
+    }
   } catch {
     created = true;
     scaffold = '# Project\n\n';
-    await writeFile(path, `${scaffold}${block}\n`, 'utf-8');
+    await writeFile(path, normalizeInstructionContent(templateBlock, scaffold), 'utf-8');
   }
   await mergeSetupInjectionManifest(basePath, {
     [relPath === ROLE_INSTRUCTION_FILE ? 'roleMd' : 'claudeMd']: {
