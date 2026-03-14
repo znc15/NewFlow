@@ -8,11 +8,6 @@ export const BLOCKED_NATIVE_TOOLS = [
   'TaskCreate',
   'TaskUpdate',
   'TaskList',
- ] as const;
-
-/** 历史版本里曾由 FlowPilot 注入过 blocker 的工具 */
-export const LEGACY_FLOWPILOT_HOOK_MATCHERS = [
-  ...BLOCKED_NATIVE_TOOLS,
   'Read',
   'Write',
   'Edit',
@@ -20,6 +15,9 @@ export const LEGACY_FLOWPILOT_HOOK_MATCHERS = [
   'Grep',
   'Explore',
 ] as const;
+
+/** 历史版本里曾由 FlowPilot 注入过 blocker 的工具 */
+export const LEGACY_FLOWPILOT_HOOK_MATCHERS = [...BLOCKED_NATIVE_TOOLS] as const;
 
 const BLOCKED_NATIVE_TOOL_SET = new Set<string>(BLOCKED_NATIVE_TOOLS);
 

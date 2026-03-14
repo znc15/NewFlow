@@ -217,12 +217,36 @@ describe('CLI hook command', () => {
     stdoutSpy.mockRestore();
   });
 
-  it('writes nothing for allowed tools', async () => {
+  it('outputs deny JSON for blocked read tools in strict mode', async () => {
     const cli = new CLI({} as any, {
       readStdinIfPiped: async () => JSON.stringify({
         hook_event_name: 'PreToolUse',
         tool_name: 'Read',
         tool_input: { file_path: 'README.md' },
+      }),
+      checkForUpdate: vi.fn(() => '有新版本'),
+    });
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+
+    await cli.run(['node', 'flow.js', 'hook', 'pretool-guard']);
+
+    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Use node flow.js commands instead of native task tools.',
+      },
+    }));
+    expect((cli as any).deps.checkForUpdate).not.toHaveBeenCalled();
+    stdoutSpy.mockRestore();
+  });
+
+  it('writes nothing for allowed tools', async () => {
+    const cli = new CLI({} as any, {
+      readStdinIfPiped: async () => JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Bash',
+        tool_input: { command: 'pwd' },
       }),
       checkForUpdate: vi.fn(() => '有新版本'),
     });

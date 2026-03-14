@@ -126,7 +126,7 @@ Run \`node flow.js resume\`:
 - If no workflow → **judge the request**: reply directly for pure chitchat, use **Ad-hoc Dispatch** for one-off tasks, or enter **Requirement Decomposition** for multi-step development work. When in doubt, prefer the heavier path.
 
 ### Ad-hoc Dispatch (one-off tasks, no workflow init)
-Dispatch sub-agent(s) via \`Agent\` tool. No init/checkpoint/finish needed. Iron Rule #4 does NOT apply (no task ID exists). Main agent MAY directly use Read/Write/Edit/Glob/Grep/Explore when helpful, but dispatching via \`Agent\` is still preferred for parallel work and clear ownership.
+Dispatch sub-agent(s) via \`Agent\` tool. No init/checkpoint/finish needed. Iron Rule #4 does NOT apply (no task ID exists). Main agent MAY use Read/Glob/Grep directly for trivial lookups (e.g. reading a single file) — Iron Rule #2 is relaxed in Ad-hoc mode only.
 **记忆查询**: 回答用户问题前，先运行 \`node flow.js recall <关键词>\` 检索历史记忆，将结果作为回答的参考依据。
 
 ### Terminology / 术语约定
@@ -141,7 +141,7 @@ Dispatch sub-agent(s) via \`Agent\` tool. No init/checkpoint/finish needed. Iron
 
 ### Iron Rules (violating ANY = protocol failure)
 1. **NEVER use TaskCreate / TaskUpdate / TaskList** — use ONLY \`node flow.js xxx\`.
-2. **Main agent MUST use \`node flow.js\` for task state changes** — \`Read\` / \`Write\` / \`Edit\` / \`Glob\` / \`Grep\` / \`Explore\` may be used directly when helpful, but \`Agent\` dispatch remains preferred for parallel execution and clean ownership boundaries.
+2. **Main agent can ONLY use Bash, \`Agent\`, and Skill** — Edit, Write, Read, Glob, Grep, Explore are ALL FORBIDDEN. To read any file (including docs), dispatch a sub-agent.
 3. **ALWAYS dispatch via \`Agent\` tool** — one \`Agent\` call per task. N tasks = N \`Agent\` calls **in a single message** for parallel execution.
 4. **Sub-agents MUST run checkpoint with --files before replying** — \`echo 'summary' | node flow.js checkpoint <id> --files file1 file2\` is the LAST command before reply. MUST list all created/modified files. Skipping = protocol failure.
 

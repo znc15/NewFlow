@@ -131,7 +131,7 @@ describe('FsWorkflowRepository', () => {
     expect(content).toContain('### Terminology / 术语约定');
     expect(content).toContain('### Dispatch Reference（子代理派发规范）');
     expect(content).toContain('**工具名称**: `Agent`');
-    expect(content).toContain('Main agent MUST use `node flow.js` for task state changes');
+    expect(content).toContain('Main agent can ONLY use Bash, `Agent`, and Skill');
     expect(content).toContain('### OpenSpec Adaptive Gate');
     expect(content).toContain('[USE_OPENSPEC]');
     expect(content).toContain('[NO_OPENSPEC]');
@@ -603,7 +603,7 @@ describe('FsWorkflowRepository', () => {
     });
   });
 
-  it('ensureHooks 移除旧的 FlowPilot 非任务 blocker', async () => {
+  it('ensureHooks 清理旧的 FlowPilot 非任务 blocker，并保留统一 guard', async () => {
     await mkdir(join(dir, '.claude'), { recursive: true });
     await writeFile(join(dir, '.claude', 'settings.json'), JSON.stringify({
       hooks: {
