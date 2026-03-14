@@ -561,7 +561,12 @@ export class WorkflowService {
       if (client === 'snow-cli' && await this.repo.ensureRoleMd(client)) setupOwnedFiles.push('ROLE.md');
       if (client === 'claude' && await this.repo.ensureHooks()) setupOwnedFiles.push('.claude/settings.json');
       if (await this.repo.ensureLocalStateIgnored()) setupOwnedFiles.push('.gitignore');
-      await saveSetupOwnedFiles(this.repo.projectRoot(), setupOwnedFiles);
+      const persistedSetupOwnedFiles = setupOwnedFiles.filter(
+        file => !CANONICAL_SETUP_NON_COMMITTABLE_FILES.includes(
+          file as (typeof CANONICAL_SETUP_NON_COMMITTABLE_FILES)[number],
+        ),
+      );
+      await saveSetupOwnedFiles(this.repo.projectRoot(), persistedSetupOwnedFiles);
 
       await this.applyHistoryInsights();
       await decayMemory(this.repo.projectRoot());

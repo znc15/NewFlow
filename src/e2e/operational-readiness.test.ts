@@ -13,9 +13,34 @@ import { existsSync } from 'node:fs';
 
 const DIST_FLOW_CLI = resolve(dirname(fileURLToPath(import.meta.url)), '../../dist/flow.js');
 const ROOT_FLOW_CLI_CANDIDATE = resolve(dirname(fileURLToPath(import.meta.url)), '../../../flow.js');
-const ROOT_FLOW_CLI = existsSync(ROOT_FLOW_CLI_CANDIDATE) ? ROOT_FLOW_CLI_CANDIDATE : DIST_FLOW_CLI;
+const SOURCE_FLOW_CLI = resolve(dirname(fileURLToPath(import.meta.url)), '../main.ts');
 const TASK_MARKDOWN = `# Clean Repo Smoke\n\n1. [backend] add tracked file\n  create one tracked file in a clean repo\n`;
 const SUBMODULE_TASK_MARKDOWN = `# Submodule Smoke\n\n1. [backend] advance submodule gitlink\n  advance a submodule commit and checkpoint the gitlink path\n`;
+
+interface FlowInvocation {
+  command: string;
+  args: string[];
+}
+
+function resolveFlowInvocation(paths: {
+  distCli: string;
+  rootCli: string;
+  sourceCli: string;
+}): FlowInvocation {
+  if (existsSync(paths.rootCli)) {
+    return { command: 'node', args: [paths.rootCli] };
+  }
+  if (existsSync(paths.distCli)) {
+    return { command: 'node', args: [paths.distCli] };
+  }
+  return { command: 'node', args: ['--import', 'tsx', paths.sourceCli] };
+}
+
+const ROOT_FLOW_CLI = resolveFlowInvocation({
+  distCli: DIST_FLOW_CLI,
+  rootCli: ROOT_FLOW_CLI_CANDIDATE,
+  sourceCli: SOURCE_FLOW_CLI,
+});
 
 function runGit(repoDir: string, args: string[], encoding: 'utf-8' | 'buffer' = 'utf-8'): string {
   return execFileSync('git', args, {
@@ -31,8 +56,8 @@ function initGitRepo(repoDir: string): void {
   execFileSync('git', ['config', 'user.email', 'flowpilot@example.com'], { cwd: repoDir, stdio: 'pipe' });
 }
 
-function runFlow(repoDir: string, args: string[], input?: string, cliPath: string = DIST_FLOW_CLI): string {
-  return execFileSync('node', [cliPath, ...args], {
+function runFlow(repoDir: string, args: string[], input?: string, cli: FlowInvocation = ROOT_FLOW_CLI): string {
+  return execFileSync(cli.command, [...cli.args, ...args], {
     cwd: repoDir,
     input,
     encoding: 'utf-8',
@@ -46,6 +71,17 @@ describe('operational readiness smoke tests', () => {
   afterEach(async () => {
     await Promise.all(tempDirs.map(dir => rm(dir, { recursive: true, force: true })));
     tempDirs.length = 0;
+  });
+
+  it('falls back to the TypeScript CLI entry when dist artifacts are unavailable', () => {
+    expect(resolveFlowInvocation({
+      distCli: '/missing/dist/flow.js',
+      rootCli: '/missing/flow.js',
+      sourceCli: '/repo/src/main.ts',
+    })).toEqual({
+      command: 'node',
+      args: ['--import', 'tsx', '/repo/src/main.ts'],
+    });
   });
 
   it('runs init -> next/checkpoint -> review -> finish and commits only workflow-owned files', async () => {
